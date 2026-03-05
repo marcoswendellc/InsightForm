@@ -1,10 +1,13 @@
-import type { Mode, Question } from "../types";
+import type { Mode, Question, QuestionType, Section, GoTo } from "../types";
 import { Trash } from "phosphor-react";
 import {
   QuestionShell,
   QuestionTop,
+  QuestionMeta,
+  LeftMeta,
+  RightMeta,
   Pill,
-  Row,
+  TypeSelect,
   Field,
   OptRow,
   OptInput,
@@ -15,33 +18,70 @@ import {
   ToggleLabel,
   ToggleSwitch,
   ToggleKnob,
-  ToggleInput
+  ToggleInput,
+  GoToSelect
 } from "./components.styles";
 
 type Props = {
   mode: Mode;
   question: Question;
+  sectionId: string;
+  sections: Section[];
 
   onRemove: () => void;
-  onUpdate: (data: { label?: string; required?: boolean }) => void;
+
+  // ✅ agora aceita jumpEnabled também
+  onUpdate: (data: {
+    label?: string;
+    required?: boolean;
+    type?: QuestionType;
+    jumpEnabled?: boolean;
+  }) => void;
 
   onAddOption: () => void;
+  onAddOtherOption: () => void;
+
   onUpdateOption: (index: number, value: string) => void;
+  onUpdateOptionGoTo: (index: number, goTo: GoTo) => void;
   onRemoveOption: (index: number) => void;
 };
+
+function goToKey(goTo?: GoTo) {
+  if (!goTo || goTo.kind === "next") return "next";
+  if (goTo.kind === "submit") return "submit";
+  return `section:${goTo.sectionId}`;
+}
+
+function parseGoTo(value: string): GoTo {
+  if (value === "next") return { kind: "next" };
+  if (value === "submit") return { kind: "submit" };
+  if (value.startsWith("section:"))
+    return { kind: "section", sectionId: value.split(":")[1] };
+  return { kind: "next" };
+}
 
 export default function QuestionCard({
   mode,
   question,
+  sectionId,
+  sections,
   onRemove,
   onUpdate,
   onAddOption,
+  onAddOtherOption,
   onUpdateOption,
+  onUpdateOptionGoTo,
   onRemoveOption
 }: Props) {
   const isBuilder = mode === "builder";
   const canEditRequired = mode === "builder" || mode === "preview";
+
   const isOptions = question.type === "multipleChoice" || question.type === "checkbox";
+  const hasOther = !!question.options?.some((o) => o.isOther);
+
+  // ✅ só múltipla escolha pode ter encaminhamento
+  const canHaveJump = isBuilder && question.type === "multipleChoice";
+  const showJump = question.type === "multipleChoice" && !!question.jumpEnabled;
 
   const typeLabel =
     question.type === "text"
@@ -54,11 +94,29 @@ export default function QuestionCard({
 
   return (
     <QuestionShell>
+      {/* TOPO */}
       <QuestionTop>
-        <Row style={{ gap: 8 }}>
-          <Pill>{typeLabel}</Pill>
-          {question.required && <Pill data-req>obrigatória</Pill>}
-        </Row>
+        <QuestionMeta>
+          <LeftMeta>
+            {isBuilder ? (
+              <TypeSelect
+                value={question.type}
+                onChange={(e) => onUpdate({ type: e.target.value as QuestionType })}
+              >
+                <option value="text">texto</option>
+                <option value="multipleChoice">múltipla escolha</option>
+                <option value="checkbox">checkbox</option>
+                <option value="date">data</option>
+              </TypeSelect>
+            ) : (
+              <Pill>{typeLabel}</Pill>
+            )}
+          </LeftMeta>
+
+          <RightMeta>
+            {question.required && <Pill data-req="true">obrigatória</Pill>}
+          </RightMeta>
+        </QuestionMeta>
       </QuestionTop>
 
       <Field
@@ -99,16 +157,42 @@ export default function QuestionCard({
         {isOptions && (
           <div>
             {question.options?.map((opt, i) => (
-              <OptRow key={i}>
+              <OptRow key={opt.id}>
                 <input
                   type={question.type === "multipleChoice" ? "radio" : "checkbox"}
                   disabled
                 />
+
                 <OptInput
-                  value={opt}
-                  disabled={!isBuilder}
+                  value={opt.label}
+                  disabled={!isBuilder || opt.isOther}
                   onChange={(e) => onUpdateOption(i, e.target.value)}
                 />
+
+                {/* ✅ Só mostra se "Encaminhar" estiver ON */}
+                {showJump && (
+                  <GoToSelect
+                    title="Ir para..."
+                    disabled={!isBuilder || !!opt.isOther}
+                    value={goToKey(opt.goTo)}
+                    onChange={(e) =>
+                      onUpdateOptionGoTo(i, parseGoTo(e.currentTarget.value))
+                    }
+                  >
+                    <option value="next">Próxima seção</option>
+
+                    {sections
+                      .filter((s) => s.id !== sectionId)
+                      .map((s, idx) => (
+                        <option key={s.id} value={`section:${s.id}`}>
+                          Ir para: {s.title?.trim() ? s.title : `Seção ${idx + 1}`}
+                        </option>
+                      ))}
+
+                    <option value="submit">Enviar formulário</option>
+                  </GoToSelect>
+                )}
+
                 {isBuilder && (
                   <Btn
                     title="Remover opção"
@@ -122,24 +206,45 @@ export default function QuestionCard({
             ))}
 
             {isBuilder && (
-              <Btn onClick={onAddOption} style={{ marginTop: 10 }}>
-                + Opção
-              </Btn>
+              <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                <Btn onClick={onAddOption}>+ Opção</Btn>
+
+                {!hasOther && <Btn onClick={onAddOtherOption}>+ Outros</Btn>}
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* FOOTER (igual Forms) */}
+      {/* FOOTER */}
       <Footer>
-        {/* Lixeira só no builder */}
         {isBuilder && (
           <IconDangerBtn title="Remover pergunta" onClick={onRemove}>
             <Trash size={18} weight="bold" />
           </IconDangerBtn>
         )}
 
-        <ToggleWrap as="label" style={{ cursor: canEditRequired ? "pointer" : "not-allowed" }}>
+        {/* ✅ Encaminhar (antes do Obrigatória) - só múltipla escolha */}
+        {canHaveJump && (
+          <ToggleWrap as="label" style={{ cursor: "pointer" }}>
+            <ToggleLabel>Encaminhar</ToggleLabel>
+
+            <ToggleInput
+              type="checkbox"
+              checked={!!question.jumpEnabled}
+              onChange={() => onUpdate({ jumpEnabled: !question.jumpEnabled })}
+            />
+
+            <ToggleSwitch data-on={question.jumpEnabled ? "true" : "false"}>
+              <ToggleKnob data-on={question.jumpEnabled ? "true" : "false"} />
+            </ToggleSwitch>
+          </ToggleWrap>
+        )}
+
+        <ToggleWrap
+          as="label"
+          style={{ cursor: canEditRequired ? "pointer" : "not-allowed" }}
+        >
           <ToggleLabel>Obrigatória</ToggleLabel>
 
           <ToggleInput
@@ -149,11 +254,10 @@ export default function QuestionCard({
             onChange={() => onUpdate({ required: !question.required })}
           />
 
-          <ToggleSwitch data-on={question.required}>
-            <ToggleKnob data-on={question.required} />
+          <ToggleSwitch data-on={question.required ? "true" : "false"}>
+            <ToggleKnob data-on={question.required ? "true" : "false"} />
           </ToggleSwitch>
         </ToggleWrap>
-
       </Footer>
     </QuestionShell>
   );

@@ -1,9 +1,5 @@
 import styled from "styled-components";
 
-/* =========================
-   LAYOUT GERAL
-========================= */
-
 export const Page = styled.div`
   min-height: calc(100vh - 64px);
   padding: 24px;
@@ -14,10 +10,6 @@ export const Center = styled.div`
   max-width: 980px;
   margin: 0 auto;
 `;
-
-/* =========================
-   HEADER
-========================= */
 
 export const Header = styled.header`
   background: #ffffff;
@@ -56,10 +48,6 @@ export const Subtle = styled.div`
   color: rgba(0, 0, 0, 0.55);
 `;
 
-/* =========================
-   AÇÕES
-========================= */
-
 export const Actions = styled.div`
   display: flex;
   gap: 10px;
@@ -93,10 +81,6 @@ export const IconBtn = styled.button`
     transform: scale(1.05);
   }
 `;
-
-/* =========================
-   BODY
-========================= */
 
 export const Body = styled.div`
   margin-top: 20px;

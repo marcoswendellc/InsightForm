@@ -58,3 +58,23 @@ export const IconBtn = styled.button`
     color: #005eff;
   }
 `;
+
+export const GoToSelect = styled.select`
+  border: 1px solid rgba(0, 0, 0, 0.10);
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 12px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  outline: none;
+  cursor: pointer;
+
+  &:focus {
+    border-color: rgba(0, 94, 255, 0.5);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+`;

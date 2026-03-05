@@ -15,7 +15,7 @@ export function MainLayout() {
 
         <Nav>
           <NavItem as={NavLink} to="/briefing">Criar briefing</NavItem>
-          {isAdmin && <NavItem as={NavLink} to="/forms">Formulários</NavItem>}
+          {isAdmin && <NavItem as={NavLink} to="/forms">Formulário</NavItem>}
         </Nav>
 
         <Right>
