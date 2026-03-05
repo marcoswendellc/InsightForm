@@ -19,7 +19,8 @@ import {
   ToggleSwitch,
   ToggleKnob,
   ToggleInput,
-  GoToSelect
+  GoToSelect,
+  OtherInput
 } from "./components.styles";
 
 type Props = {
@@ -30,7 +31,6 @@ type Props = {
 
   onRemove: () => void;
 
-  // ✅ agora aceita jumpEnabled também
   onUpdate: (data: {
     label?: string;
     required?: boolean;
@@ -55,8 +55,9 @@ function goToKey(goTo?: GoTo) {
 function parseGoTo(value: string): GoTo {
   if (value === "next") return { kind: "next" };
   if (value === "submit") return { kind: "submit" };
-  if (value.startsWith("section:"))
+  if (value.startsWith("section:")) {
     return { kind: "section", sectionId: value.split(":")[1] };
+  }
   return { kind: "next" };
 }
 
@@ -79,7 +80,7 @@ export default function QuestionCard({
   const isOptions = question.type === "multipleChoice" || question.type === "checkbox";
   const hasOther = !!question.options?.some((o) => o.isOther);
 
-  // ✅ só múltipla escolha pode ter encaminhamento
+  // ✅ encaminhamento: só em múltipla escolha
   const canHaveJump = isBuilder && question.type === "multipleChoice";
   const showJump = question.type === "multipleChoice" && !!question.jumpEnabled;
 
@@ -113,9 +114,7 @@ export default function QuestionCard({
             )}
           </LeftMeta>
 
-          <RightMeta>
-            {question.required && <Pill data-req="true">obrigatória</Pill>}
-          </RightMeta>
+          <RightMeta>{question.required && <Pill data-req="true">obrigatória</Pill>}</RightMeta>
         </QuestionMeta>
       </QuestionTop>
 
@@ -163,21 +162,27 @@ export default function QuestionCard({
                   disabled
                 />
 
-                <OptInput
-                  value={opt.label}
-                  disabled={!isBuilder || opt.isOther}
-                  onChange={(e) => onUpdateOption(i, e.target.value)}
-                />
+                {/* ✅ OUTROS no estilo Forms */}
+                {opt.isOther ? (
+                  <>
+                    <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>Outros:</span>
+                    <OtherInput disabled placeholder="Digite sua resposta" />
+                  </>
+                ) : (
+                  <OptInput
+                    value={opt.label}
+                    disabled={!isBuilder}
+                    onChange={(e) => onUpdateOption(i, e.target.value)}
+                  />
+                )}
 
-                {/* ✅ Só mostra se "Encaminhar" estiver ON */}
-                {showJump && (
+                {/* ✅ “Ir para” só se Encaminhar estiver ON e NÃO for Outros */}
+                {showJump && !opt.isOther && (
                   <GoToSelect
                     title="Ir para..."
-                    disabled={!isBuilder || !!opt.isOther}
+                    disabled={!isBuilder}
                     value={goToKey(opt.goTo)}
-                    onChange={(e) =>
-                      onUpdateOptionGoTo(i, parseGoTo(e.currentTarget.value))
-                    }
+                    onChange={(e) => onUpdateOptionGoTo(i, parseGoTo(e.currentTarget.value))}
                   >
                     <option value="next">Próxima seção</option>
 
@@ -208,7 +213,6 @@ export default function QuestionCard({
             {isBuilder && (
               <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                 <Btn onClick={onAddOption}>+ Opção</Btn>
-
                 {!hasOther && <Btn onClick={onAddOtherOption}>+ Outros</Btn>}
               </div>
             )}

@@ -378,3 +378,12 @@ export const GoToSelect = styled.select`
     cursor: not-allowed;
   }
 `;
+
+export const OtherInput = styled.input`
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid rgba(0,0,0,0.35);
+  background: transparent;
+  padding: 6px 4px;
+  outline: none;
+`;
