@@ -160,7 +160,6 @@ export default function FormBuilderPage() {
             state.form.sections.map((section, index) => (
               <SectionCard
                 key={section.id}
-                mode={state.mode}
                 section={section}
                 index={index}
                 active={section.id === state.activeSectionId}

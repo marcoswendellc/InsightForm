@@ -1,6 +1,5 @@
-import type { GoTo, Mode, QuestionType, Section } from "../types";
+import type { GoTo, QuestionType, Section } from "../types";
 import QuestionCard from "./QuestionCard";
-import SectionPreview from "./SectionPreview";
 import { Trash } from "phosphor-react";
 
 import {
@@ -16,7 +15,6 @@ import {
 } from "./components.styles";
 
 type Props = {
-  mode: Mode;
   section: Section;
   index: number;
   canRemove: boolean;
@@ -44,7 +42,6 @@ type Props = {
 };
 
 export default function SectionCard({
-  mode,
   section,
   index,
   active,
@@ -61,31 +58,10 @@ export default function SectionCard({
   onUpdateOptionGoTo,
   onRemoveOption
 }: Props) {
-
-  /**
-   * ============================
-   * PREVIEW MODE
-   * ============================
-   * Se estiver em preview, delegamos
-   * para o componente específico.
-   */
-  if (mode === "preview") {
-    return <SectionPreview section={section} index={index} />;
-  }
-
-  /**
-   * ============================
-   * BUILDER MODE
-   * ============================
-   */
-
   const hasQuestions = section.questions.length > 0;
 
   return (
-    <SectionShell
-      data-active={active}
-      onClick={onActivate}
-    >
+    <SectionShell data-active={active} onClick={onActivate}>
       <SectionTop>
         <div>
           <SectionBadge>Seção {index + 1}</SectionBadge>
@@ -106,7 +82,6 @@ export default function SectionCard({
         </SectionRight>
       </SectionTop>
 
-      {/* TÍTULO DA SEÇÃO */}
       <Field
         placeholder="Título da seção"
         value={section.title}
@@ -114,7 +89,6 @@ export default function SectionCard({
         onChange={(e) => onUpdate({ title: e.target.value })}
       />
 
-      {/* DESCRIÇÃO */}
       <TextArea
         placeholder="Descrição da seção"
         value={section.description}
@@ -122,49 +96,28 @@ export default function SectionCard({
         onChange={(e) => onUpdate({ description: e.target.value })}
       />
 
-      <Helper>
-        Clique na seção para ativar e usar o menu lateral.
-      </Helper>
+      <Helper>Clique na seção para ativar e usar o menu lateral.</Helper>
 
-      {/* PERGUNTAS */}
       <QuestionsBlock>
         {hasQuestions ? (
           section.questions.map((q) => (
-            <div
-              key={q.id}
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div key={q.id} onClick={(e) => e.stopPropagation()}>
               <QuestionCard
-                mode={mode}
+                mode="builder"
                 question={q}
                 sectionId={section.id}
                 sections={allSections}
-
                 onRemove={() => onRemoveQuestion(q.id)}
-
-                onUpdate={(data) =>
-                  onUpdateQuestion(q.id, data)
-                }
-
-                onAddOption={() =>
-                  onAddOption(q.id)
-                }
-
-                onAddOtherOption={() =>
-                  onAddOtherOption(q.id)
-                }
-
+                onUpdate={(data) => onUpdateQuestion(q.id, data)}
+                onAddOption={() => onAddOption(q.id)}
+                onAddOtherOption={() => onAddOtherOption(q.id)}
                 onUpdateOption={(optIndex, value) =>
                   onUpdateOption(q.id, optIndex, value)
                 }
-
                 onUpdateOptionGoTo={(optIndex, goTo) =>
                   onUpdateOptionGoTo(q.id, optIndex, goTo)
                 }
-
-                onRemoveOption={(optIndex) =>
-                  onRemoveOption(q.id, optIndex)
-                }
+                onRemoveOption={(optIndex) => onRemoveOption(q.id, optIndex)}
               />
             </div>
           ))

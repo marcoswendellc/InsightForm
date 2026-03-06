@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { FormDefinition, GoTo, Question } from "../types";
+import type { FormDefinition, Question } from "../types";
 import SectionPreview from "./SectionPreview";
 
 type AnswersMap = Record<string, string | string[]>;
