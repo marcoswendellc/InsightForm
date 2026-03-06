@@ -75,31 +75,23 @@ export default function QuestionCard({
   onRemoveOption
 }: Props) {
   const isBuilder = mode === "builder";
-  const canEditRequired = mode === "builder" || mode === "preview";
+  const isPreview = mode === "preview";
 
-  const isOptions = question.type === "multipleChoice" || question.type === "checkbox";
+  const isOptions =
+    question.type === "multipleChoice" || question.type === "checkbox";
+
   const hasOther = !!question.options?.some((o) => o.isOther);
 
-  // ✅ encaminhamento: só em múltipla escolha
   const canHaveJump = isBuilder && question.type === "multipleChoice";
   const showJump = question.type === "multipleChoice" && !!question.jumpEnabled;
-
-  const typeLabel =
-    question.type === "text"
-      ? "texto"
-      : question.type === "multipleChoice"
-      ? "múltipla escolha"
-      : question.type === "checkbox"
-      ? "checkbox"
-      : "data";
 
   return (
     <QuestionShell>
       {/* TOPO */}
-      <QuestionTop>
-        <QuestionMeta>
-          <LeftMeta>
-            {isBuilder ? (
+      {isBuilder && (
+        <QuestionTop>
+          <QuestionMeta>
+            <LeftMeta>
               <TypeSelect
                 value={question.type}
                 onChange={(e) => onUpdate({ type: e.target.value as QuestionType })}
@@ -109,33 +101,52 @@ export default function QuestionCard({
                 <option value="checkbox">checkbox</option>
                 <option value="date">data</option>
               </TypeSelect>
-            ) : (
-              <Pill>{typeLabel}</Pill>
-            )}
-          </LeftMeta>
+            </LeftMeta>
 
-          <RightMeta>{question.required && <Pill data-req="true">obrigatória</Pill>}</RightMeta>
-        </QuestionMeta>
-      </QuestionTop>
+            <RightMeta>
+              {question.required && <Pill data-req="true">obrigatória</Pill>}
+            </RightMeta>
+          </QuestionMeta>
+        </QuestionTop>
+      )}
 
-      <Field
-        value={question.label}
-        placeholder="Digite a pergunta"
-        disabled={!isBuilder}
-        onChange={(e) => onUpdate({ label: e.target.value })}
-      />
+      {isBuilder ? (
+        <Field
+          value={question.label}
+          placeholder="Digite a pergunta"
+          onChange={(e) => onUpdate({ label: e.target.value })}
+        />
+      ) : (
+        <div
+          style={{
+            fontSize: 16,
+            fontWeight: 500,
+            marginBottom: 12,
+            lineHeight: 1.4
+          }}
+        >
+          {question.label || "Pergunta sem título"}
+          {question.required && (
+            <span style={{ color: "#d93025", marginLeft: 4 }}>*</span>
+          )}
+        </div>
+      )}
 
-      {/* PREVIEW DO INPUT */}
-      <div style={{ marginTop: 10 }}>
+      {/* PREVIEW DO INPUT / RESPOSTA */}
+      <div style={{ marginTop: isBuilder ? 10 : 0 }}>
         {question.type === "text" && (
           <input
-            disabled
-            placeholder="Resposta curta"
+            type="text"
+            disabled={!isPreview}
+            placeholder="Sua resposta"
             style={{
               width: "100%",
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.14)"
+              padding: "10px 0",
+              border: "none",
+              borderBottom: "1px solid rgba(0,0,0,0.24)",
+              background: "transparent",
+              outline: "none",
+              fontSize: 14
             }}
           />
         )}
@@ -143,30 +154,36 @@ export default function QuestionCard({
         {question.type === "date" && (
           <input
             type="date"
-            disabled
+            disabled={!isPreview}
             style={{
               width: "100%",
-              padding: "10px 12px",
-              borderRadius: 12,
-              border: "1px solid rgba(0,0,0,0.14)"
+              padding: "10px 0",
+              border: "none",
+              borderBottom: "1px solid rgba(0,0,0,0.24)",
+              background: "transparent",
+              outline: "none",
+              fontSize: 14
             }}
           />
         )}
 
         {isOptions && (
-          <div>
+          <div style={{ display: "grid", gap: 10 }}>
             {question.options?.map((opt, i) => (
               <OptRow key={opt.id}>
                 <input
                   type={question.type === "multipleChoice" ? "radio" : "checkbox"}
-                  disabled
+                  name={question.type === "multipleChoice" ? question.id : undefined}
+                  disabled={!isPreview}
                 />
 
-                {/* ✅ OUTROS no estilo Forms */}
                 {opt.isOther ? (
                   <>
-                    <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>Outros:</span>
-                    <OtherInput disabled placeholder="Digite sua resposta" />
+                    <span style={{ whiteSpace: "nowrap" }}>Outros:</span>
+                    <OtherInput
+                      disabled={!isPreview}
+                      placeholder="Digite sua resposta"
+                    />
                   </>
                 ) : (
                   <OptInput
@@ -176,13 +193,14 @@ export default function QuestionCard({
                   />
                 )}
 
-                {/* ✅ “Ir para” só se Encaminhar estiver ON e NÃO for Outros */}
                 {showJump && !opt.isOther && (
                   <GoToSelect
                     title="Ir para..."
                     disabled={!isBuilder}
                     value={goToKey(opt.goTo)}
-                    onChange={(e) => onUpdateOptionGoTo(i, parseGoTo(e.currentTarget.value))}
+                    onChange={(e) =>
+                      onUpdateOptionGoTo(i, parseGoTo(e.currentTarget.value))
+                    }
                   >
                     <option value="next">Próxima seção</option>
 
@@ -221,48 +239,43 @@ export default function QuestionCard({
       </div>
 
       {/* FOOTER */}
-      <Footer>
-        {isBuilder && (
+      {isBuilder && (
+        <Footer>
           <IconDangerBtn title="Remover pergunta" onClick={onRemove}>
             <Trash size={18} weight="bold" />
           </IconDangerBtn>
-        )}
 
-        {/* ✅ Encaminhar (antes do Obrigatória) - só múltipla escolha */}
-        {canHaveJump && (
+          {canHaveJump && (
+            <ToggleWrap as="label" style={{ cursor: "pointer" }}>
+              <ToggleLabel>Encaminhar</ToggleLabel>
+
+              <ToggleInput
+                type="checkbox"
+                checked={!!question.jumpEnabled}
+                onChange={() => onUpdate({ jumpEnabled: !question.jumpEnabled })}
+              />
+
+              <ToggleSwitch data-on={question.jumpEnabled ? "true" : "false"}>
+                <ToggleKnob data-on={question.jumpEnabled ? "true" : "false"} />
+              </ToggleSwitch>
+            </ToggleWrap>
+          )}
+
           <ToggleWrap as="label" style={{ cursor: "pointer" }}>
-            <ToggleLabel>Encaminhar</ToggleLabel>
+            <ToggleLabel>Obrigatória</ToggleLabel>
 
             <ToggleInput
               type="checkbox"
-              checked={!!question.jumpEnabled}
-              onChange={() => onUpdate({ jumpEnabled: !question.jumpEnabled })}
+              checked={question.required}
+              onChange={() => onUpdate({ required: !question.required })}
             />
 
-            <ToggleSwitch data-on={question.jumpEnabled ? "true" : "false"}>
-              <ToggleKnob data-on={question.jumpEnabled ? "true" : "false"} />
+            <ToggleSwitch data-on={question.required ? "true" : "false"}>
+              <ToggleKnob data-on={question.required ? "true" : "false"} />
             </ToggleSwitch>
           </ToggleWrap>
-        )}
-
-        <ToggleWrap
-          as="label"
-          style={{ cursor: canEditRequired ? "pointer" : "not-allowed" }}
-        >
-          <ToggleLabel>Obrigatória</ToggleLabel>
-
-          <ToggleInput
-            type="checkbox"
-            checked={question.required}
-            disabled={!canEditRequired}
-            onChange={() => onUpdate({ required: !question.required })}
-          />
-
-          <ToggleSwitch data-on={question.required ? "true" : "false"}>
-            <ToggleKnob data-on={question.required ? "true" : "false"} />
-          </ToggleSwitch>
-        </ToggleWrap>
-      </Footer>
+        </Footer>
+      )}
     </QuestionShell>
   );
 }

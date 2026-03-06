@@ -47,16 +47,17 @@ export const Divider = styled.div`
 `;
 
 export const SectionShell = styled.section`
-  background: rgba(255, 255, 255, 0.92);
+  background: #ffffff;
   border: 2px solid transparent;
   border-radius: 18px;
-  padding: 16px;
+  padding: 20px;
 
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
   &[data-active="true"] {
     border-color: rgba(0, 94, 255, 0.65);
+    box-shadow: 0 12px 28px rgba(0, 94, 255, 0.12);
   }
 `;
 
@@ -96,6 +97,8 @@ export const Field = styled.input`
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 14px;
   padding: 12px 12px;
+  font-size: 14px;
+  background: #fff;
 
   &:focus {
     outline: none;
@@ -115,6 +118,8 @@ export const TextArea = styled.textarea`
   padding: 12px 12px;
   resize: vertical;
   min-height: 44px;
+  font-size: 14px;
+  background: #fff;
 
   &:focus {
     outline: none;
@@ -130,13 +135,14 @@ export const Helper = styled.div`
   margin-top: 8px;
   font-size: 12px;
   color: rgba(0, 0, 0, 0.6);
+  line-height: 1.45;
 `;
 
 export const QuestionShell = styled.div`
   margin-top: 22px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 16px;
-  padding: 12px;
+  padding: 16px;
   background: #fff;
 `;
 
@@ -146,7 +152,6 @@ export const QuestionTop = styled.div`
   width: 100%;
 `;
 
-/** ✅ NOVO: barra meta do topo (tipo à esquerda / required à direita) */
 export const QuestionMeta = styled.div`
   display: flex;
   align-items: center;
@@ -164,7 +169,6 @@ export const LeftMeta = styled.div`
   flex: 1;
 `;
 
-/** (opcional) RightMeta se quiser colocar mais coisas depois */
 export const RightMeta = styled.div`
   display: flex;
   align-items: center;
@@ -197,7 +201,7 @@ export const Pill = styled.span`
 export const OptRow = styled.div`
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   margin-top: 8px;
 `;
 
@@ -206,9 +210,20 @@ export const OptInput = styled.input`
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 12px;
   padding: 10px 12px;
+  font-size: 14px;
+  background: #fff;
+
+  &:focus {
+    outline: none;
+    border-color: #005eff;
+  }
 
   &:disabled {
-    background: #f5f5f5;
+    background: transparent;
+    border: none;
+    padding: 0;
+    border-radius: 0;
+    color: rgba(0, 0, 0, 0.84);
   }
 `;
 
@@ -335,7 +350,7 @@ export const QuestionsBlock = styled.div`
 `;
 
 export const TypeSelect = styled.select`
-  border: 1px solid rgba(0, 0, 0, 0.10);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   background: rgba(0, 0, 0, 0.04);
   border-radius: 999px;
   padding: 6px 12px;
@@ -344,7 +359,6 @@ export const TypeSelect = styled.select`
   outline: none;
   cursor: pointer;
 
-  /* deixa mais “clean” (remove estilo padrão do select) */
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -356,8 +370,8 @@ export const TypeSelect = styled.select`
 
 export const GoToSelect = styled.select`
   height: 34px;
-  border: 1px solid rgba(0,0,0,0.10);
-  background: rgba(0,0,0,0.04);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.04);
   border-radius: 12px;
   padding: 0 10px;
   font-size: 12px;
@@ -370,11 +384,11 @@ export const GoToSelect = styled.select`
   -moz-appearance: none;
 
   &:focus {
-    border-color: rgba(0,94,255,0.5);
+    border-color: rgba(0, 94, 255, 0.5);
   }
 
-  &:disabled{
-    opacity: .55;
+  &:disabled {
+    opacity: 0.55;
     cursor: not-allowed;
   }
 `;
@@ -382,8 +396,17 @@ export const GoToSelect = styled.select`
 export const OtherInput = styled.input`
   flex: 1;
   border: none;
-  border-bottom: 1px solid rgba(0,0,0,0.35);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.35);
   background: transparent;
   padding: 6px 4px;
   outline: none;
+  font-size: 14px;
+
+  &:disabled {
+    opacity: 1;
+  }
+
+  &:focus {
+    border-bottom-color: #673ab7;
+  }
 `;

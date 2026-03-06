@@ -4,11 +4,24 @@ export const Page = styled.div`
   min-height: calc(100vh - 64px);
   padding: 24px;
   background: #f4f6f8;
+  transition: background 0.2s ease;
+
+  &[data-preview="true"] {
+    background: #f0ebf8;
+  }
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
 `;
 
 export const Center = styled.div`
   max-width: 980px;
   margin: 0 auto;
+
+  &[data-preview="true"] {
+    max-width: 760px;
+  }
 `;
 
 export const Header = styled.header`
@@ -21,6 +34,11 @@ export const Header = styled.header`
   gap: 16px;
 
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 export const TitleInput = styled.input`
@@ -31,14 +49,15 @@ export const TitleInput = styled.input`
   font-size: 20px;
   font-weight: 700;
   background: transparent;
+  color: #202124;
 
   &::placeholder {
     color: rgba(0, 0, 0, 0.4);
   }
 
   &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+    opacity: 1;
+    cursor: default;
   }
 `;
 
@@ -46,11 +65,13 @@ export const Subtle = styled.div`
   margin-top: 6px;
   font-size: 12px;
   color: rgba(0, 0, 0, 0.55);
+  line-height: 1.4;
 `;
 
 export const Actions = styled.div`
   display: flex;
   gap: 10px;
+  flex-shrink: 0;
 `;
 
 export const IconBtn = styled.button`
@@ -71,13 +92,13 @@ export const IconBtn = styled.button`
   transition: all 0.2s ease;
 
   &[data-active="true"] {
-    background: rgba(0, 94, 255, 0.15);
-    color: #005eff;
+    background: rgba(103, 58, 183, 0.14);
+    color: #673ab7;
   }
 
   &:hover {
-    background: rgba(0, 94, 255, 0.12);
-    color: #005eff;
+    background: rgba(103, 58, 183, 0.12);
+    color: #673ab7;
     transform: scale(1.05);
   }
 `;
@@ -88,4 +109,8 @@ export const Body = styled.div`
   display: flex;
   flex-direction: column;
   gap: 16px;
+
+  &[data-preview="true"] {
+    gap: 12px;
+  }
 `;
