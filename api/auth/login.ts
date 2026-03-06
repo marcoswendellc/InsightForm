@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import bcrypt from "bcryptjs";
-import { readSheetRange } from "../_gsheets";
+import { readSheetRange } from "../_gsheets.js";
 import { signToken } from "../_auth";
 
 type Role = "user" | "admin";
