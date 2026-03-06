@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { Question } from "../types";
 import {
   PreviewQuestionShell,
@@ -14,21 +14,28 @@ import {
 
 type Props = {
   question: Question;
+  value?: string | string[];
+  onChange: (value: string | string[]) => void;
 };
 
-export default function QuestionPreview({ question }: Props) {
-  const [textValue, setTextValue] = useState("");
-  const [dateValue, setDateValue] = useState("");
-  const [radioValue, setRadioValue] = useState("");
-  const [checkboxValues, setCheckboxValues] = useState<string[]>([]);
-  const [otherValue, setOtherValue] = useState("");
-
+export default function QuestionPreview({ question, value, onChange }: Props) {
   const optionName = useMemo(() => `preview_${question.id}`, [question.id]);
 
-  const toggleCheckbox = (value: string) => {
-    setCheckboxValues((prev) =>
-      prev.includes(value) ? prev.filter((item) => item !== value) : [...prev, value]
-    );
+  const selectedCheckboxes = Array.isArray(value) ? value : [];
+  const selectedRadio = typeof value === "string" ? value : "";
+
+  const toggleCheckbox = (optionId: string) => {
+    if (!Array.isArray(value)) {
+      onChange([optionId]);
+      return;
+    }
+
+    if (value.includes(optionId)) {
+      onChange(value.filter((item) => item !== optionId));
+      return;
+    }
+
+    onChange([...value, optionId]);
   };
 
   return (
@@ -42,16 +49,16 @@ export default function QuestionPreview({ question }: Props) {
         <PreviewTextInput
           type="text"
           placeholder="Sua resposta"
-          value={textValue}
-          onChange={(e) => setTextValue(e.target.value)}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
         />
       )}
 
       {question.type === "date" && (
         <PreviewDateInput
           type="date"
-          value={dateValue}
-          onChange={(e) => setDateValue(e.target.value)}
+          value={typeof value === "string" ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
         />
       )}
 
@@ -62,8 +69,8 @@ export default function QuestionPreview({ question }: Props) {
               <input
                 type="radio"
                 name={optionName}
-                checked={radioValue === opt.id}
-                onChange={() => setRadioValue(opt.id)}
+                checked={selectedRadio === opt.id}
+                onChange={() => onChange(opt.id)}
               />
 
               {opt.isOther ? (
@@ -71,11 +78,7 @@ export default function QuestionPreview({ question }: Props) {
                   <span>Outros:</span>
                   <PreviewOtherInput
                     placeholder="Digite sua resposta"
-                    value={otherValue}
-                    onChange={(e) => {
-                      setRadioValue(opt.id);
-                      setOtherValue(e.target.value);
-                    }}
+                    onFocus={() => onChange(opt.id)}
                   />
                 </PreviewOtherWrap>
               ) : (
@@ -92,7 +95,7 @@ export default function QuestionPreview({ question }: Props) {
             <PreviewOptionRow key={opt.id}>
               <input
                 type="checkbox"
-                checked={checkboxValues.includes(opt.id)}
+                checked={selectedCheckboxes.includes(opt.id)}
                 onChange={() => toggleCheckbox(opt.id)}
               />
 
@@ -101,12 +104,10 @@ export default function QuestionPreview({ question }: Props) {
                   <span>Outros:</span>
                   <PreviewOtherInput
                     placeholder="Digite sua resposta"
-                    value={otherValue}
-                    onChange={(e) => {
-                      if (!checkboxValues.includes(opt.id)) {
+                    onFocus={() => {
+                      if (!selectedCheckboxes.includes(opt.id)) {
                         toggleCheckbox(opt.id);
                       }
-                      setOtherValue(e.target.value);
                     }}
                   />
                 </PreviewOtherWrap>

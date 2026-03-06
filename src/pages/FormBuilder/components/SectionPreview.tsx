@@ -1,4 +1,4 @@
-import type { Section } from "../types";
+import type { Question, Section } from "../types";
 import QuestionPreview from "./QuestionPreview";
 import {
   PreviewSectionShell,
@@ -8,12 +8,21 @@ import {
   PreviewQuestionsBlock
 } from "./preview.styles";
 
+type AnswersMap = Record<string, string | string[]>;
+
 type Props = {
   section: Section;
   index: number;
+  answers: AnswersMap;
+  onAnswerChange: (question: Question, value: string | string[]) => void;
 };
 
-export default function SectionPreview({ section, index }: Props) {
+export default function SectionPreview({
+  section,
+  index,
+  answers,
+  onAnswerChange
+}: Props) {
   const title = section.title?.trim() || `Seção ${index + 1}`;
 
   return (
@@ -31,7 +40,12 @@ export default function SectionPreview({ section, index }: Props) {
       <PreviewQuestionsBlock>
         {section.questions.length > 0 ? (
           section.questions.map((question) => (
-            <QuestionPreview key={question.id} question={question} />
+            <QuestionPreview
+              key={question.id}
+              question={question}
+              value={answers[question.id]}
+              onChange={(value) => onAnswerChange(question, value)}
+            />
           ))
         ) : (
           <PreviewSectionDescription>
