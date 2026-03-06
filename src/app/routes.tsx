@@ -26,9 +26,7 @@ export function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        {/* Ao entrar logado, cai no briefing */}
         <Route index element={<Navigate to="/briefing" replace />} />
-
         <Route path="briefing" element={<BriefingPage />} />
         <Route path="forms" element={<FormsPage />} />
         <Route path="builder" element={<FormBuilderPage />} />
