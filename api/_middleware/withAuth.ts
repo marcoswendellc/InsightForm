@@ -1,6 +1,6 @@
 // api/_middleware/withAuth.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { verifyToken, type JwtUser } from "../_auth.ts";
+import { verifyToken, type JwtUser } from "../_auth.js"
 
 export type AuthedRequest = VercelRequest & {
   user: JwtUser;
