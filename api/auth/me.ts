@@ -1,6 +1,6 @@
 // api/auth/me.ts
 import type { VercelResponse } from "@vercel/node";
-import { withAuth, type AuthedRequest } from "../_middleware/withAuth";
+import { withAuth, type AuthedRequest } from "../_middleware/withAuth.js";
 
 export default withAuth(async function handler(req: AuthedRequest, res: VercelResponse) {
   if (req.method !== "GET") {
