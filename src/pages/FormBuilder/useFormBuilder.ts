@@ -65,26 +65,35 @@ export function useFormBuilder() {
       addSection: () => dispatch({ type: "ADD_SECTION" }),
       removeSection: (sectionId: string) =>
         dispatch({ type: "REMOVE_SECTION", sectionId }),
+
       updateSection: (
         sectionId: string,
         data: Partial<{ title: string; description: string }>
       ) => dispatch({ type: "UPDATE_SECTION", sectionId, data }),
 
+      updateSectionGoTo: (sectionId: string, goTo: GoTo) =>
+        dispatch({ type: "UPDATE_SECTION_GOTO", sectionId, goTo }),
+
       addQuestion: (sectionId: string, qType: QuestionType) =>
         dispatch({ type: "ADD_QUESTION", sectionId, qType }),
+
       removeQuestion: (sectionId: string, questionId: string) =>
         dispatch({ type: "REMOVE_QUESTION", sectionId, questionId }),
 
       updateQuestion: (
         sectionId: string,
         questionId: string,
-        data: Partial<{ label: string; required: boolean; type: QuestionType }>
+        data: Partial<{
+          label: string;
+          required: boolean;
+          type: QuestionType;
+          jumpEnabled: boolean;
+        }>
       ) => dispatch({ type: "UPDATE_QUESTION", sectionId, questionId, data }),
 
       addOption: (sectionId: string, questionId: string) =>
         dispatch({ type: "ADD_OPTION", sectionId, questionId }),
 
-      // ✅ NOVO: adiciona “Outros” uma única vez e sempre no final
       addOtherOption: (sectionId: string, questionId: string) =>
         dispatch({ type: "ADD_OTHER_OPTION", sectionId, questionId }),
 
@@ -93,15 +102,28 @@ export function useFormBuilder() {
         questionId: string,
         index: number,
         value: string
-      ) => dispatch({ type: "UPDATE_OPTION", sectionId, questionId, index, value }),
+      ) =>
+        dispatch({
+          type: "UPDATE_OPTION",
+          sectionId,
+          questionId,
+          index,
+          value
+        }),
 
-      // ✅ NOVO: define o pulo de seção por opção
       updateOptionGoTo: (
         sectionId: string,
         questionId: string,
         index: number,
         goTo: GoTo
-      ) => dispatch({ type: "UPDATE_OPTION_GOTO", sectionId, questionId, index, goTo }),
+      ) =>
+        dispatch({
+          type: "UPDATE_OPTION_GOTO",
+          sectionId,
+          questionId,
+          index,
+          goTo
+        }),
 
       removeOption: (sectionId: string, questionId: string, index: number) =>
         dispatch({ type: "REMOVE_OPTION", sectionId, questionId, index }),
@@ -111,7 +133,8 @@ export function useFormBuilder() {
         dispatch({ type: "IMPORT_FORM", form: createEmptyForm() });
       },
 
-      importForm: (form: FormDefinition) => dispatch({ type: "IMPORT_FORM", form })
+      importForm: (form: FormDefinition) =>
+        dispatch({ type: "IMPORT_FORM", form })
     };
   }, []);
 

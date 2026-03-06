@@ -33,6 +33,11 @@ export const PreviewQuestionsBlock = styled.div`
 export const PreviewQuestionShell = styled.div`
   padding: 18px 0;
 
+  &[data-error="true"] {
+    border-left: 4px solid #d93025;
+    padding-left: 12px;
+  }
+
   &:first-child {
     padding-top: 0;
   }
@@ -61,6 +66,10 @@ export const PreviewTextInput = styled.input`
   color: #202124;
   outline: none;
 
+  &[data-error="true"] {
+    border-bottom: 2px solid #d93025;
+  }
+
   &:focus {
     border-bottom: 2px solid #673ab7;
   }
@@ -79,6 +88,10 @@ export const PreviewDateInput = styled.input`
   font-size: 14px;
   color: #202124;
   outline: none;
+
+  &[data-error="true"] {
+    border-bottom: 2px solid #d93025;
+  }
 
   &:focus {
     border-bottom: 2px solid #673ab7;
@@ -123,4 +136,10 @@ export const PreviewOtherInput = styled.input`
   &::placeholder {
     color: #5f6368;
   }
+`;
+export const PreviewErrorText = styled.div`
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #d93025;
 `;

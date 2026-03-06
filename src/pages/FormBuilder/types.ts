@@ -1,17 +1,17 @@
 export type Mode = "builder" | "preview";
 export type QuestionType = "text" | "multipleChoice" | "checkbox" | "date";
 
-/** Regra de navegação por opção (estilo Google Forms) */
+/** Regra de navegação (estilo Google Forms) */
 export type GoTo =
-  | { kind: "next" }                          // próxima seção (padrão)
-  | { kind: "section"; sectionId: string }    // ir para uma seção específica
-  | { kind: "submit" };                       // enviar / finalizar
+  | { kind: "next" }
+  | { kind: "section"; sectionId: string }
+  | { kind: "submit" };
 
 export type Option = {
   id: string;
   label: string;
-  isOther?: boolean; // 👈 marca “Outros”
-  goTo?: GoTo;       // 👈 pular seções por opção
+  isOther?: boolean;
+  goTo?: GoTo;
 };
 
 export type Question = {
@@ -28,6 +28,7 @@ export type Section = {
   title: string;
   description: string;
   questions: Question[];
+  goTo?: GoTo;
 };
 
 export type FormDefinition = {
@@ -68,7 +69,8 @@ export const createEmptyForm = (): FormDefinition => {
         id: firstSectionId,
         title: "",
         description: "",
-        questions: []
+        questions: [],
+        goTo: { kind: "next" }
       }
     ]
   };

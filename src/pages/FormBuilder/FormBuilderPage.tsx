@@ -168,6 +168,9 @@ export default function FormBuilderPage() {
                 onActivate={() => actions.setActiveSection(section.id)}
                 onRemove={() => actions.removeSection(section.id)}
                 onUpdate={(data) => actions.updateSection(section.id, data)}
+                onUpdateSectionGoTo={(goTo) =>
+                  actions.updateSectionGoTo(section.id, goTo)
+                }
                 onRemoveQuestion={(questionId) =>
                   actions.removeQuestion(section.id, questionId)
                 }

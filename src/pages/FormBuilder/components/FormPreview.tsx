@@ -1,18 +1,40 @@
 import { useMemo, useState } from "react";
-import type { FormDefinition, Question } from "../types";
+import type { FormDefinition, GoTo, Question } from "../types";
 import SectionPreview from "./SectionPreview";
 
 type AnswersMap = Record<string, string | string[]>;
+type ErrorsMap = Record<string, string>;
 
 type Props = {
   form: FormDefinition;
 };
 
+function resolveGoToTarget(
+  form: FormDefinition,
+  currentSectionIndex: number,
+  goTo?: GoTo
+): number | "submit" {
+  if (!goTo || goTo.kind === "next") {
+    return currentSectionIndex + 1;
+  }
+
+  if (goTo.kind === "submit") {
+    return "submit";
+  }
+
+  if (goTo.kind === "section") {
+    const targetIndex = form.sections.findIndex((s) => s.id === goTo.sectionId);
+    return targetIndex !== -1 ? targetIndex : currentSectionIndex + 1;
+  }
+
+  return currentSectionIndex + 1;
+}
+
 function getNextSectionIndex(
   form: FormDefinition,
   currentSectionIndex: number,
   answers: AnswersMap
-) {
+): number | "submit" {
   const currentSection = form.sections[currentSectionIndex];
   if (!currentSection) return currentSectionIndex + 1;
 
@@ -23,37 +45,54 @@ function getNextSectionIndex(
     if (!answer || Array.isArray(answer)) continue;
 
     const selectedOption = question.options?.find((opt) => opt.id === answer);
-    if (!selectedOption?.goTo) continue;
-
-    const goTo = selectedOption.goTo;
-
-    if (goTo.kind === "submit") {
-      return "submit";
+    if (selectedOption?.goTo) {
+      return resolveGoToTarget(form, currentSectionIndex, selectedOption.goTo);
     }
+  }
 
-    if (goTo.kind === "section") {
-      const targetIndex = form.sections.findIndex((s) => s.id === goTo.sectionId);
-      if (targetIndex !== -1) return targetIndex;
-    }
-
-    if (goTo.kind === "next") {
-      return currentSectionIndex + 1;
-    }
+  if (currentSection.goTo) {
+    return resolveGoToTarget(form, currentSectionIndex, currentSection.goTo);
   }
 
   return currentSectionIndex + 1;
 }
 
+function isEmptyAnswer(question: Question, value: string | string[] | undefined) {
+  if (question.type === "checkbox") {
+    return !Array.isArray(value) || value.length === 0;
+  }
+
+  return typeof value !== "string" || value.trim() === "";
+}
+
+function validateSection(sectionQuestions: Question[], answers: AnswersMap): ErrorsMap {
+  const nextErrors: ErrorsMap = {};
+
+  for (const question of sectionQuestions) {
+    if (!question.required) continue;
+
+    const value = answers[question.id];
+
+    if (isEmptyAnswer(question, value)) {
+      nextErrors[question.id] = "Esta pergunta é obrigatória.";
+    }
+  }
+
+  return nextErrors;
+}
+
 export default function FormPreview({ form }: Props) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswersMap>({});
+  const [errors, setErrors] = useState<ErrorsMap>({});
   const [submitted, setSubmitted] = useState(false);
+  const [history, setHistory] = useState<number[]>([]);
 
   const section = form.sections[currentSectionIndex];
 
   const isLast = useMemo(() => {
     const next = getNextSectionIndex(form, currentSectionIndex, answers);
-    return next === "submit" || currentSectionIndex >= form.sections.length - 1;
+    return next === "submit" || (typeof next === "number" && next >= form.sections.length);
   }, [form, currentSectionIndex, answers]);
 
   if (!section) {
@@ -65,14 +104,43 @@ export default function FormPreview({ form }: Props) {
       ...prev,
       [question.id]: value
     }));
+
+    setErrors((prev) => {
+      if (!prev[question.id]) return prev;
+      const next = { ...prev };
+      delete next[question.id];
+      return next;
+    });
   };
 
   const handleBack = () => {
     setSubmitted(false);
-    setCurrentSectionIndex((prev) => Math.max(0, prev - 1));
+    setErrors({});
+
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+
+      const nextHistory = [...prev];
+      const previousSectionIndex = nextHistory.pop();
+
+      if (typeof previousSectionIndex === "number") {
+        setCurrentSectionIndex(previousSectionIndex);
+      }
+
+      return nextHistory;
+    });
   };
 
   const handleNext = () => {
+    const validationErrors = validateSection(section.questions, answers);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setErrors({});
+
     const next = getNextSectionIndex(form, currentSectionIndex, answers);
 
     if (next === "submit") {
@@ -85,6 +153,7 @@ export default function FormPreview({ form }: Props) {
       return;
     }
 
+    setHistory((prev) => [...prev, currentSectionIndex]);
     setCurrentSectionIndex(next);
   };
 
@@ -111,6 +180,8 @@ export default function FormPreview({ form }: Props) {
             setSubmitted(false);
             setCurrentSectionIndex(0);
             setAnswers({});
+            setErrors({});
+            setHistory([]);
           }}
           style={{
             marginTop: 20,
@@ -135,6 +206,7 @@ export default function FormPreview({ form }: Props) {
         section={section}
         index={currentSectionIndex}
         answers={answers}
+        errors={errors}
         onAnswerChange={handleAnswerChange}
       />
 
@@ -147,7 +219,7 @@ export default function FormPreview({ form }: Props) {
         }}
       >
         <div>
-          {currentSectionIndex > 0 && (
+          {history.length > 0 && (
             <button
               onClick={handleBack}
               style={{

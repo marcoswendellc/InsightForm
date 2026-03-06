@@ -15,6 +15,7 @@ export type Action =
   | { type: "ADD_SECTION" }
   | { type: "REMOVE_SECTION"; sectionId: string }
   | { type: "UPDATE_SECTION"; sectionId: string; data: Partial<{ title: string; description: string }> }
+  | { type: "UPDATE_SECTION_GOTO"; sectionId: string; goTo: GoTo }
   | { type: "ADD_QUESTION"; sectionId: string; qType: QuestionType }
   | { type: "REMOVE_QUESTION"; sectionId: string; questionId: string }
   | {
@@ -105,7 +106,8 @@ export function reducer(state: State, action: Action): State {
           id,
           title: `Seção ${state.form.sections.length + 1}`,
           description: "",
-          questions: []
+          questions: [],
+          goTo: { kind: "next" as const }
         }
       ];
 
@@ -130,6 +132,19 @@ export function reducer(state: State, action: Action): State {
     case "UPDATE_SECTION": {
       const nextSections = state.form.sections.map((s) =>
         s.id === action.sectionId ? { ...s, ...action.data } : s
+      );
+
+      return { ...state, form: { ...state.form, sections: nextSections } };
+    }
+
+    case "UPDATE_SECTION_GOTO": {
+      const nextSections = state.form.sections.map((s) =>
+        s.id === action.sectionId
+          ? {
+              ...s,
+              goTo: action.goTo
+            }
+          : s
       );
 
       return { ...state, form: { ...state.form, sections: nextSections } };

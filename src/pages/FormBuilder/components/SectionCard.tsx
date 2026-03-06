@@ -11,7 +11,8 @@ import {
   TextArea,
   Helper,
   QuestionsBlock,
-  IconDangerBtn
+  IconDangerBtn,
+  GoToSelect
 } from "./components.styles";
 
 type Props = {
@@ -25,12 +26,18 @@ type Props = {
   onActivate: () => void;
   onRemove: () => void;
   onUpdate: (data: { title?: string; description?: string }) => void;
+  onUpdateSectionGoTo: (goTo: GoTo) => void;
 
   onRemoveQuestion: (questionId: string) => void;
 
   onUpdateQuestion: (
     questionId: string,
-    data: { label?: string; required?: boolean; type?: QuestionType }
+    data: {
+      label?: string;
+      required?: boolean;
+      type?: QuestionType;
+      jumpEnabled?: boolean;
+    }
   ) => void;
 
   onAddOption: (questionId: string) => void;
@@ -41,6 +48,21 @@ type Props = {
   onRemoveOption: (questionId: string, index: number) => void;
 };
 
+function goToKey(goTo?: GoTo) {
+  if (!goTo || goTo.kind === "next") return "next";
+  if (goTo.kind === "submit") return "submit";
+  return `section:${goTo.sectionId}`;
+}
+
+function parseGoTo(value: string): GoTo {
+  if (value === "next") return { kind: "next" };
+  if (value === "submit") return { kind: "submit" };
+  if (value.startsWith("section:")) {
+    return { kind: "section", sectionId: value.split(":")[1] };
+  }
+  return { kind: "next" };
+}
+
 export default function SectionCard({
   section,
   index,
@@ -50,6 +72,7 @@ export default function SectionCard({
   onActivate,
   onRemove,
   onUpdate,
+  onUpdateSectionGoTo,
   onRemoveQuestion,
   onUpdateQuestion,
   onAddOption,
@@ -127,6 +150,40 @@ export default function SectionCard({
           </Helper>
         )}
       </QuestionsBlock>
+
+      <div
+        style={{
+          marginTop: 18,
+          paddingTop: 14,
+          borderTop: "1px solid rgba(0,0,0,0.08)",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          flexWrap: "wrap"
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Helper style={{ marginTop: 0, fontSize: 13 }}>
+          Após esta seção:
+        </Helper>
+
+        <GoToSelect
+          value={goToKey(section.goTo)}
+          onChange={(e) => onUpdateSectionGoTo(parseGoTo(e.currentTarget.value))}
+        >
+          <option value="next">Continuar para a próxima seção</option>
+
+          {allSections
+            .filter((s) => s.id !== section.id)
+            .map((s, idx) => (
+              <option key={s.id} value={`section:${s.id}`}>
+                Ir para a seção {idx + 1} ({s.title?.trim() || `Seção ${idx + 1}`})
+              </option>
+            ))}
+
+          <option value="submit">Enviar formulário</option>
+        </GoToSelect>
+      </div>
     </SectionShell>
   );
 }

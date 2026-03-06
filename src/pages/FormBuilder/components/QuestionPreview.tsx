@@ -9,16 +9,18 @@ import {
   PreviewOptionsList,
   PreviewOptionRow,
   PreviewOtherWrap,
-  PreviewOtherInput
+  PreviewOtherInput,
+  PreviewErrorText
 } from "./preview.styles";
 
 type Props = {
   question: Question;
   value?: string | string[];
+  error?: string;
   onChange: (value: string | string[]) => void;
 };
 
-export default function QuestionPreview({ question, value, onChange }: Props) {
+export default function QuestionPreview({ question, value, error, onChange }: Props) {
   const optionName = useMemo(() => `preview_${question.id}`, [question.id]);
 
   const selectedCheckboxes = Array.isArray(value) ? value : [];
@@ -39,7 +41,7 @@ export default function QuestionPreview({ question, value, onChange }: Props) {
   };
 
   return (
-    <PreviewQuestionShell>
+    <PreviewQuestionShell data-error={error ? "true" : "false"}>
       <PreviewQuestionLabel>
         {question.label || "Pergunta sem título"}
         {question.required && <RequiredMark>*</RequiredMark>}
@@ -51,6 +53,7 @@ export default function QuestionPreview({ question, value, onChange }: Props) {
           placeholder="Sua resposta"
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
+          data-error={error ? "true" : "false"}
         />
       )}
 
@@ -59,6 +62,7 @@ export default function QuestionPreview({ question, value, onChange }: Props) {
           type="date"
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
+          data-error={error ? "true" : "false"}
         />
       )}
 
@@ -118,6 +122,8 @@ export default function QuestionPreview({ question, value, onChange }: Props) {
           ))}
         </PreviewOptionsList>
       )}
+
+      {error && <PreviewErrorText>{error}</PreviewErrorText>}
     </PreviewQuestionShell>
   );
 }
