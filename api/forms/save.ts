@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { getPool } from "../_db.js";
-import type { FormPayload } from "../_types.js";
+import type { FormPayload } from "../_types.ts";
 import crypto from "crypto";
 
 const uuid = () => crypto.randomUUID();
