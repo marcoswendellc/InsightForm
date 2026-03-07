@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { PencilSimple, Eye, FileText, FloppyDisk } from "phosphor-react";
+import {
+  PencilSimple,
+  Eye,
+  FileText,
+  FloppyDisk,
+  FolderOpen
+} from "phosphor-react";
 
 import FormPreview from "./components/FormPreview";
 import { useFormBuilder } from "./useFormBuilder";
@@ -20,18 +26,42 @@ import {
   Subtle
 } from "./page.styles";
 
+type ListedForm = {
+  id: string;
+  title: string;
+  status?: string;
+  updated_at?: string;
+};
+
+function formatDate(value?: string) {
+  if (!value) return "Sem data";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return date.toLocaleString("pt-BR", {
+    dateStyle: "short",
+    timeStyle: "short"
+  });
+}
+
 export default function FormBuilderPage() {
   const [params, setParams] = useSearchParams();
   const { state, actions } = useFormBuilder();
 
   const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<string>("");
+  const [saveMessage, setSaveMessage] = useState("");
+
+  const [forms, setForms] = useState<ListedForm[]>([]);
+  const [isLoadingForms, setIsLoadingForms] = useState(false);
+  const [formsError, setFormsError] = useState("");
 
   const isNew = params.get("new") === "1";
   const formId = params.get("id");
 
   const urlMode = (params.get("mode") as Mode | null) ?? "builder";
   const isPreview = urlMode === "preview";
+
+  const shouldShowList = !formId && !isNew;
 
   const updateParams = (fn: (next: URLSearchParams) => void, replace = true) => {
     const next = new URLSearchParams(params);
@@ -40,15 +70,11 @@ export default function FormBuilderPage() {
   };
 
   useEffect(() => {
-    actions.setMode(urlMode);
-
-    if (urlMode === "preview") {
-      actions.setActiveSection(null);
+    if (shouldShowList) {
+      document.title = "Formulários";
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlMode]);
 
-  useEffect(() => {
     if (isPreview) {
       document.title = "Visualizar formulário";
       return;
@@ -60,7 +86,18 @@ export default function FormBuilderPage() {
     }
 
     document.title = "Editar formulário";
-  }, [isPreview, isNew]);
+  }, [shouldShowList, isPreview, isNew]);
+
+  useEffect(() => {
+    if (shouldShowList) return;
+
+    actions.setMode(urlMode);
+
+    if (urlMode === "preview") {
+      actions.setActiveSection(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlMode, shouldShowList]);
 
   useEffect(() => {
     if (!isNew) return;
@@ -88,6 +125,42 @@ export default function FormBuilderPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formId, isNew]);
 
+  useEffect(() => {
+    if (!shouldShowList) return;
+
+    const loadForms = async () => {
+      setIsLoadingForms(true);
+      setFormsError("");
+
+      try {
+        const response = await fetch("/api/forms/list");
+        const rawText = await response.text();
+
+        let data: any = null;
+        try {
+          data = rawText ? JSON.parse(rawText) : null;
+        } catch {
+          throw new Error(rawText || "Resposta inválida ao listar formulários.");
+        }
+
+        if (!response.ok || !data?.ok) {
+          throw new Error(data?.error || "Não foi possível carregar os formulários.");
+        }
+
+        setForms(Array.isArray(data.forms) ? data.forms : []);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro ao carregar formulários.";
+        setFormsError(message);
+        setForms([]);
+      } finally {
+        setIsLoadingForms(false);
+      }
+    };
+
+    loadForms();
+  }, [shouldShowList]);
+
   const setMode = (mode: Mode) => {
     updateParams((p) => {
       p.set("mode", mode);
@@ -99,6 +172,22 @@ export default function FormBuilderPage() {
     updateParams((p) => {
       p.set("new", "1");
       p.delete("id");
+      p.delete("mode");
+    }, true);
+  };
+
+  const handleOpenForm = (id: string) => {
+    updateParams((p) => {
+      p.set("id", id);
+      p.delete("new");
+      p.delete("mode");
+    }, true);
+  };
+
+  const handleBackToList = () => {
+    updateParams((p) => {
+      p.delete("id");
+      p.delete("new");
       p.delete("mode");
     }, true);
   };
@@ -123,7 +212,14 @@ export default function FormBuilderPage() {
         body: JSON.stringify(payload)
       });
 
-      const data = await response.json();
+      const rawText = await response.text();
+
+      let data: any = null;
+      try {
+        data = rawText ? JSON.parse(rawText) : null;
+      } catch {
+        throw new Error(rawText || "O servidor retornou uma resposta inválida.");
+      }
 
       if (!response.ok || !data?.ok) {
         throw new Error(data?.error || "Não foi possível salvar o formulário.");
@@ -154,8 +250,161 @@ export default function FormBuilderPage() {
   };
 
   const canShowToolbar = useMemo(() => {
-    return state.mode === "builder" && !!state.activeSectionId;
-  }, [state.mode, state.activeSectionId]);
+    return !shouldShowList && state.mode === "builder" && !!state.activeSectionId;
+  }, [shouldShowList, state.mode, state.activeSectionId]);
+
+  if (shouldShowList) {
+    return (
+      <Page data-preview="false">
+        <Center data-preview="false">
+          <Header>
+            <div style={{ flex: 1, minWidth: 260 }}>
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: "#202124"
+                }}
+              >
+                Formulários
+              </div>
+
+              <Subtle>
+                Crie um novo formulário ou abra um formulário salvo para continuar.
+              </Subtle>
+            </div>
+
+            <Actions>
+              <IconBtn title="Novo formulário" onClick={handleNew}>
+                <FileText size={20} weight="bold" />
+              </IconBtn>
+            </Actions>
+          </Header>
+
+          <Body data-preview="false">
+            {isLoadingForms ? (
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: 16,
+                  padding: 18,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)"
+                }}
+              >
+                Carregando formulários...
+              </div>
+            ) : formsError ? (
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: 16,
+                  padding: 18,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                  color: "#d93025",
+                  fontWeight: 500
+                }}
+              >
+                {formsError}
+              </div>
+            ) : forms.length === 0 ? (
+              <div
+                style={{
+                  background: "#fff",
+                  borderRadius: 16,
+                  padding: 18,
+                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)"
+                }}
+              >
+                <div style={{ fontSize: 16, fontWeight: 600, color: "#202124" }}>
+                  Nenhum formulário encontrado
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 8,
+                    color: "rgba(0,0,0,0.6)",
+                    lineHeight: 1.5
+                  }}
+                >
+                  Clique no botão de novo formulário para começar.
+                </div>
+              </div>
+            ) : (
+              forms.map((form) => (
+                <button
+                  key={form.id}
+                  onClick={() => handleOpenForm(form.id)}
+                  style={{
+                    width: "100%",
+                    background: "#fff",
+                    border: "none",
+                    borderRadius: 16,
+                    padding: 18,
+                    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    cursor: "pointer",
+                    textAlign: "left"
+                  }}
+                >
+                  <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                    <div
+                      style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: 12,
+                        background: "rgba(103,58,183,0.12)",
+                        display: "grid",
+                        placeItems: "center",
+                        color: "#673ab7"
+                      }}
+                    >
+                      <FolderOpen size={20} weight="bold" />
+                    </div>
+
+                    <div>
+                      <div
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 700,
+                          color: "#202124"
+                        }}
+                      >
+                        {form.title || "Formulário sem título"}
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: 4,
+                          fontSize: 13,
+                          color: "rgba(0,0,0,0.6)"
+                        }}
+                      >
+                        Atualizado em {formatDate(form.updated_at)}
+                        {form.status ? ` • ${form.status}` : ""}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      color: "#673ab7",
+                      fontSize: 13,
+                      fontWeight: 700
+                    }}
+                  >
+                    Abrir
+                  </div>
+                </button>
+              ))
+            )}
+          </Body>
+        </Center>
+      </Page>
+    );
+  }
 
   return (
     <Page data-preview={isPreview ? "true" : "false"}>
@@ -172,7 +421,8 @@ export default function FormBuilderPage() {
             <Subtle>
               {isPreview
                 ? "Pré-visualização do formulário"
-                : saveMessage || "Clique em uma seção para ativar e use o menu lateral para adicionar perguntas."}
+                : saveMessage ||
+                  "Clique em uma seção para ativar e use o menu lateral para adicionar perguntas."}
             </Subtle>
           </div>
 
@@ -186,6 +436,10 @@ export default function FormBuilderPage() {
                 <FloppyDisk size={20} weight="bold" />
               </IconBtn>
             )}
+
+            <IconBtn title="Voltar para lista" onClick={handleBackToList}>
+              <FolderOpen size={20} weight="bold" />
+            </IconBtn>
 
             <IconBtn
               title="Editar"
