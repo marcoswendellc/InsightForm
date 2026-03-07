@@ -134,7 +134,31 @@ export function useFormBuilder() {
       },
 
       importForm: (form: FormDefinition) =>
-        dispatch({ type: "IMPORT_FORM", form })
+        dispatch({ type: "IMPORT_FORM", form }),
+
+      load: async (formId: string) => {
+        const response = await fetch(`/api/forms/get?id=${encodeURIComponent(formId)}`);
+        const rawText = await response.text();
+
+        let data: any = null;
+
+        try {
+          data = rawText ? JSON.parse(rawText) : null;
+        } catch {
+          throw new Error(rawText || "Resposta inválida ao carregar formulário.");
+        }
+
+        if (!response.ok || !data?.ok || !data?.form) {
+          throw new Error(data?.error || "Não foi possível carregar o formulário.");
+        }
+
+        clearDraft();
+        dispatch({ type: "IMPORT_FORM", form: data.form });
+        dispatch({
+          type: "SET_ACTIVE_SECTION",
+          sectionId: data.form.sections?.[0]?.id ?? null
+        });
+      }
     };
   }, []);
 
