@@ -55,6 +55,9 @@ export default function FormBuilderPage() {
   const [isLoadingForms, setIsLoadingForms] = useState(false);
   const [formsError, setFormsError] = useState("");
 
+  const [isLoadingForm, setIsLoadingForm] = useState(false);
+  const [loadFormError, setLoadFormError] = useState("");
+
   const isNew = params.get("new") === "1";
   const formId = params.get("id");
 
@@ -96,8 +99,7 @@ export default function FormBuilderPage() {
     if (urlMode === "preview") {
       actions.setActiveSection(null);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlMode, shouldShowList]);
+  }, [urlMode, shouldShowList, actions]);
 
   useEffect(() => {
     if (!isNew) return;
@@ -112,18 +114,40 @@ export default function FormBuilderPage() {
       p.delete("new");
       p.delete("mode");
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isNew]);
+  }, [isNew, actions]);
 
   useEffect(() => {
     if (isNew) return;
     if (!formId) return;
 
-    if (typeof (actions as any).load === "function") {
-      (actions as any).load(formId);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [formId, isNew]);
+    let cancelled = false;
+
+    const run = async () => {
+      setIsLoadingForm(true);
+      setLoadFormError("");
+      setSaveMessage("");
+
+      try {
+        await actions.load(formId);
+      } catch (error) {
+        if (cancelled) return;
+
+        const message =
+          error instanceof Error ? error.message : "Erro ao carregar formulário.";
+        setLoadFormError(message);
+      } finally {
+        if (!cancelled) {
+          setIsLoadingForm(false);
+        }
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [formId, isNew, actions]);
 
   useEffect(() => {
     if (!shouldShowList) return;
@@ -415,11 +439,15 @@ export default function FormBuilderPage() {
               placeholder="Nome do formulário"
               value={state.form.title}
               onChange={(e) => actions.setTitle(e.target.value)}
-              disabled={isPreview}
+              disabled={isPreview || isLoadingForm}
             />
 
             <Subtle>
-              {isPreview
+              {isLoadingForm
+                ? "Carregando formulário..."
+                : loadFormError
+                ? loadFormError
+                : isPreview
                 ? "Pré-visualização do formulário"
                 : saveMessage ||
                   "Clique em uma seção para ativar e use o menu lateral para adicionar perguntas."}
@@ -431,7 +459,7 @@ export default function FormBuilderPage() {
               <IconBtn
                 title={isSaving ? "Salvando..." : "Salvar"}
                 onClick={handleSave}
-                disabled={isSaving}
+                disabled={isSaving || isLoadingForm}
               >
                 <FloppyDisk size={20} weight="bold" />
               </IconBtn>
@@ -445,6 +473,7 @@ export default function FormBuilderPage() {
               title="Editar"
               data-active={!isPreview}
               onClick={() => setMode("builder")}
+              disabled={isLoadingForm}
             >
               <PencilSimple size={20} weight="bold" />
             </IconBtn>
@@ -453,6 +482,7 @@ export default function FormBuilderPage() {
               title="Visualizar"
               data-active={isPreview}
               onClick={() => setMode("preview")}
+              disabled={isLoadingForm}
             >
               <Eye size={20} weight="bold" />
             </IconBtn>
@@ -464,7 +494,31 @@ export default function FormBuilderPage() {
         </Header>
 
         <Body data-preview={isPreview ? "true" : "false"}>
-          {isPreview ? (
+          {isLoadingForm ? (
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 16,
+                padding: 18,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.08)"
+              }}
+            >
+              Carregando formulário...
+            </div>
+          ) : loadFormError ? (
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: 16,
+                padding: 18,
+                boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                color: "#d93025",
+                fontWeight: 500
+              }}
+            >
+              {loadFormError}
+            </div>
+          ) : isPreview ? (
             <FormPreview form={state.form} />
           ) : (
             state.form.sections.map((section, index) => (
