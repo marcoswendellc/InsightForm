@@ -82,6 +82,12 @@ const HEADERS = {
   ]
 } as const;
 
+function assertEnv() {
+  if (!SHEET_ID) throw new Error("Missing GOOGLE_SHEET_ID");
+  if (!SERVICE_ACCOUNT_EMAIL) throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  if (!PRIVATE_KEY) throw new Error("Missing GOOGLE_PRIVATE_KEY");
+}
+
 function rowToObject(
   headers: readonly string[],
   row: unknown[]
@@ -94,10 +100,6 @@ function rowToObject(
 }
 
 async function getSheetsClient() {
-  if (!SHEET_ID) throw new Error("Missing GOOGLE_SHEET_ID");
-  if (!SERVICE_ACCOUNT_EMAIL) throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL");
-  if (!PRIVATE_KEY) throw new Error("Missing GOOGLE_PRIVATE_KEY");
-
   const auth = new google.auth.JWT({
     email: SERVICE_ACCOUNT_EMAIL,
     key: PRIVATE_KEY,
@@ -175,6 +177,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ ok: false, error: "Invalid payload" });
     }
 
+    assertEnv();
     const sheets = await getSheetsClient();
 
     const [questionsRaw, optionsRaw, responsesRaw, responseItemsRaw] =
@@ -340,6 +343,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       responseId
     });
   } catch (e: any) {
+    console.error("submit.ts error:", e);
+
     return res.status(500).json({
       ok: false,
       error: e?.message ?? "error"
