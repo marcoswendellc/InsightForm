@@ -9,6 +9,11 @@ type Props = {
   form: FormDefinition;
 };
 
+type SubmitAnswer = {
+  questionId: string;
+  value: string | string[];
+};
+
 function resolveGoToTarget(
   form: FormDefinition,
   currentSectionIndex: number,
@@ -81,14 +86,29 @@ function validateSection(sectionQuestions: Question[], answers: AnswersMap): Err
   return nextErrors;
 }
 
+function buildSubmitAnswers(answers: AnswersMap): SubmitAnswer[] {
+  return Object.entries(answers)
+    .filter(([, value]) => {
+      if (Array.isArray(value)) return value.length > 0;
+      return value.trim() !== "";
+    })
+    .map(([questionId, value]) => ({
+      questionId,
+      value
+    }));
+}
+
 export default function FormPreview({ form }: Props) {
   const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswersMap>({});
   const [errors, setErrors] = useState<ErrorsMap>({});
   const [submitted, setSubmitted] = useState(false);
   const [history, setHistory] = useState<number[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const section = form.sections[currentSectionIndex];
+  const canSubmitForm = Boolean(form.id?.trim());
 
   const isLast = useMemo(() => {
     const next = getNextSectionIndex(form, currentSectionIndex, answers);
@@ -111,11 +131,16 @@ export default function FormPreview({ form }: Props) {
       delete next[question.id];
       return next;
     });
+
+    if (submitError) {
+      setSubmitError("");
+    }
   };
 
   const handleBack = () => {
     setSubmitted(false);
     setErrors({});
+    setSubmitError("");
 
     setHistory((prev) => {
       if (prev.length === 0) return prev;
@@ -131,7 +156,34 @@ export default function FormPreview({ form }: Props) {
     });
   };
 
-  const handleNext = () => {
+  const submitForm = async () => {
+    if (!canSubmitForm) {
+      throw new Error("Salve o formulário antes de testar o envio das respostas.");
+    }
+
+    const payload = {
+      formId: form.id,
+      formTitle: form.title,
+      source: "web",
+      answers: buildSubmitAnswers(answers)
+    };
+
+    const response = await fetch("/api/forms/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data?.ok) {
+      throw new Error(data?.error || "Não foi possível enviar a resposta.");
+    }
+  };
+
+  const handleNext = async () => {
     const validationErrors = validateSection(section.questions, answers);
 
     if (Object.keys(validationErrors).length > 0) {
@@ -140,16 +192,26 @@ export default function FormPreview({ form }: Props) {
     }
 
     setErrors({});
+    setSubmitError("");
 
     const next = getNextSectionIndex(form, currentSectionIndex, answers);
 
-    if (next === "submit") {
-      setSubmitted(true);
-      return;
-    }
+    const shouldSubmit =
+      next === "submit" ||
+      (typeof next === "number" && next >= form.sections.length);
 
-    if (next >= form.sections.length) {
-      setSubmitted(true);
+    if (shouldSubmit) {
+      try {
+        setIsSubmitting(true);
+        await submitForm();
+        setSubmitted(true);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro ao enviar formulário.";
+        setSubmitError(message);
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
@@ -172,7 +234,7 @@ export default function FormPreview({ form }: Props) {
         </h2>
 
         <p style={{ marginTop: 12, color: "#5f6368", lineHeight: 1.5 }}>
-          Este é apenas um preview do formulário.
+          Sua resposta foi registrada com sucesso.
         </p>
 
         <button
@@ -182,6 +244,7 @@ export default function FormPreview({ form }: Props) {
             setAnswers({});
             setErrors({});
             setHistory([]);
+            setSubmitError("");
           }}
           style={{
             marginTop: 20,
@@ -210,6 +273,32 @@ export default function FormPreview({ form }: Props) {
         onAnswerChange={handleAnswerChange}
       />
 
+      {!canSubmitForm && isLast && (
+        <div
+          style={{
+            marginTop: 14,
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#b26a00"
+          }}
+        >
+          Salve o formulário antes de testar o envio das respostas.
+        </div>
+      )}
+
+      {submitError && (
+        <div
+          style={{
+            marginTop: 14,
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#d93025"
+          }}
+        >
+          {submitError}
+        </div>
+      )}
+
       <div
         style={{
           marginTop: 20,
@@ -222,13 +311,15 @@ export default function FormPreview({ form }: Props) {
           {history.length > 0 && (
             <button
               onClick={handleBack}
+              disabled={isSubmitting}
               style={{
                 background: "transparent",
                 color: "#673ab7",
                 border: "none",
                 padding: "10px 0",
                 fontWeight: 600,
-                cursor: "pointer"
+                cursor: isSubmitting ? "not-allowed" : "pointer",
+                opacity: isSubmitting ? 0.6 : 1
               }}
             >
               Voltar
@@ -238,6 +329,7 @@ export default function FormPreview({ form }: Props) {
 
         <button
           onClick={handleNext}
+          disabled={isSubmitting}
           style={{
             background: "#673ab7",
             color: "#fff",
@@ -245,10 +337,11 @@ export default function FormPreview({ form }: Props) {
             borderRadius: 8,
             padding: "10px 20px",
             fontWeight: 600,
-            cursor: "pointer"
+            cursor: isSubmitting ? "not-allowed" : "pointer",
+            opacity: isSubmitting ? 0.7 : 1
           }}
         >
-          {isLast ? "Enviar" : "Avançar"}
+          {isSubmitting ? "Enviando..." : isLast ? "Enviar" : "Avançar"}
         </button>
       </div>
     </div>

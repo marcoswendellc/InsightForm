@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { PencilSimple, Eye, FileText } from "phosphor-react";
+import { PencilSimple, Eye, FileText, FloppyDisk } from "phosphor-react";
 
 import FormPreview from "./components/FormPreview";
 import { useFormBuilder } from "./useFormBuilder";
@@ -23,6 +23,9 @@ import {
 export default function FormBuilderPage() {
   const [params, setParams] = useSearchParams();
   const { state, actions } = useFormBuilder();
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState<string>("");
 
   const isNew = params.get("new") === "1";
   const formId = params.get("id");
@@ -100,6 +103,49 @@ export default function FormBuilderPage() {
     }, true);
   };
 
+  const handleSave = async () => {
+    if (isPreview) return;
+
+    setIsSaving(true);
+    setSaveMessage("");
+
+    try {
+      const payload = {
+        id: formId ?? state.form.id,
+        form: state.form
+      };
+
+      const response = await fetch("/api/forms/save", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data?.ok) {
+        throw new Error(data?.error || "Não foi possível salvar o formulário.");
+      }
+
+      if (data.id) {
+        updateParams((p) => {
+          p.set("id", data.id);
+          p.delete("new");
+        });
+      }
+
+      setSaveMessage("Formulário salvo com sucesso.");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro ao salvar o formulário.";
+      setSaveMessage(message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const activeSectionId = state.activeSectionId;
 
   const handleAddQuestion = (type: QuestionType) => {
@@ -126,11 +172,21 @@ export default function FormBuilderPage() {
             <Subtle>
               {isPreview
                 ? "Pré-visualização do formulário"
-                : "Clique em uma seção para ativar e use o menu lateral para adicionar perguntas."}
+                : saveMessage || "Clique em uma seção para ativar e use o menu lateral para adicionar perguntas."}
             </Subtle>
           </div>
 
           <Actions>
+            {!isPreview && (
+              <IconBtn
+                title={isSaving ? "Salvando..." : "Salvar"}
+                onClick={handleSave}
+                disabled={isSaving}
+              >
+                <FloppyDisk size={20} weight="bold" />
+              </IconBtn>
+            )}
+
             <IconBtn
               title="Editar"
               data-active={!isPreview}

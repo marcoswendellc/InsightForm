@@ -96,10 +96,15 @@ export const IconBtn = styled.button`
     color: #673ab7;
   }
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: rgba(103, 58, 183, 0.12);
     color: #673ab7;
     transform: scale(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 `;
 
