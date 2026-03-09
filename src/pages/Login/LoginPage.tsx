@@ -15,10 +15,10 @@ export default function LoginPage() {
 
   // se já estiver logado, manda pra briefing direto
   if (isAuthenticated) {
-  navigate("/forms", { replace: true });
+  navigate("/builder", { replace: true });
   }
 
-  const from = (location.state as any)?.from?.pathname ?? "/forms";
+  const from = (location.state as any)?.from?.pathname ?? "/builder";
 
   return (
     <Page>
