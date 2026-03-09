@@ -1,47 +1,39 @@
-// api/_middleware/withAuth.ts
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { verifyToken, type JwtUser } from "../_auth.js"
+import { verifyToken, type JwtUser } from "../_auth.js";
 
-export type AuthedRequest = VercelRequest & {
-  user: JwtUser;
+type AuthedRequest = VercelRequest & {
+  user?: JwtUser;
 };
 
-function getBearerToken(req: VercelRequest) {
-  const h = req.headers.authorization || "";
-  const [type, token] = h.split(" ");
-  if (type?.toLowerCase() !== "bearer" || !token) return null;
-  return token;
-}
-
 export function withAuth(
-  handler: (req: AuthedRequest, res: VercelResponse) => any,
-  opts?: { roles?: Array<JwtUser["role"]> }
+  handler: (req: AuthedRequest, res: VercelResponse) => unknown | Promise<unknown>
 ) {
-  return async function (req: VercelRequest, res: VercelResponse) {
-    const token = getBearerToken(req);
+  return async (req: AuthedRequest, res: VercelResponse) => {
+    const authHeader = req.headers.authorization;
 
-    if (!token) {
-      return res.status(401).json({ ok: false, error: "Missing token" });
+    if (!authHeader) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
-    try {
-      const payload = verifyToken(token);
+    const [scheme, token] = authHeader.split(" ");
 
-      const user: JwtUser = {
-        id: payload.id,
-        name: payload.name,
-        username: payload.username,
-        role: payload.role
-      };
-
-      if (opts?.roles?.length && !opts.roles.includes(user.role)) {
-        return res.status(403).json({ ok: false, error: "Forbidden" });
-      }
-
-      (req as AuthedRequest).user = user;
-      return handler(req as AuthedRequest, res);
-    } catch {
-      return res.status(401).json({ ok: false, error: "Invalid or expired token" });
+    if (scheme !== "Bearer" || !token) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
+
+    const payload = verifyToken(token);
+
+    if (!payload) {
+      return res.status(401).json({ ok: false, error: "Invalid token" });
+    }
+
+    req.user = {
+      id: payload.id,
+      name: payload.name,
+      username: payload.username,
+      role: payload.role
+    };
+
+    return handler(req, res);
   };
 }

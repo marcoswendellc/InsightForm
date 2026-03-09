@@ -89,8 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const authHeader = (): Record<string, string> => {
     const h: Record<string, string> = {};
     if (token) h.Authorization = `Bearer ${token}`;
-    return h;
-    };
+      return h;
+  };
 
   const refresh = async () => {
     if (!token) {

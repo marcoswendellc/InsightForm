@@ -1,4 +1,4 @@
-export type Mode = "builder" | "preview";
+export type Mode = "builder" | "preview" | "respond";
 export type QuestionType = "text" | "multipleChoice" | "checkbox" | "date";
 
 /** Regra de navegação (estilo Google Forms) */
@@ -37,9 +37,15 @@ export type FormDefinition = {
   sections: Section[];
 };
 
+/** Respostas do usuário por pergunta */
+export type FormAnswers = Record<string, string | string[]>;
+
 export const createId = () => crypto.randomUUID();
 
-export const createOption = (label: string, extra?: Partial<Option>): Option => ({
+export const createOption = (
+  label: string,
+  extra?: Partial<Option>
+): Option => ({
   id: createId(),
   label,
   ...extra

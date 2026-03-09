@@ -1,14 +1,26 @@
-// api/auth/me.ts
-import type { VercelResponse } from "@vercel/node";
-import { withAuth, type AuthedRequest } from "../_middleware/withAuth.js";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { getUserFromRequest } from "../_auth.js";
 
-export default withAuth(async function handler(req: AuthedRequest, res: VercelResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
-  return res.status(200).json({
-    ok: true,
-    user: req.user
-  });
-}); 
+  try {
+    const user = getUserFromRequest(req);
+
+    if (!user) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      user
+    });
+  } catch (e: any) {
+    return res.status(500).json({
+      ok: false,
+      error: e?.message ?? "error"
+    });
+  }
+}

@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
+import { getUserFromRequest, isPublishedStatus } from "../_auth.js";
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -116,6 +117,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const user = getUserFromRequest(req);
+
+    if (!user) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
     const formId = String(req.query.id ?? "").trim();
 
     if (!formId) {
@@ -134,15 +141,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const formRows = formsRaw.slice(1).map((row) => rowToObject(HEADERS.forms, row));
     const sectionRows = sectionsRaw.slice(1).map((row) => rowToObject(HEADERS.sections, row));
-    const questionRows = questionsRaw
-      .slice(1)
-      .map((row) => rowToObject(HEADERS.questions, row));
+    const questionRows = questionsRaw.slice(1).map((row) => rowToObject(HEADERS.questions, row));
     const optionRows = optionsRaw.slice(1).map((row) => rowToObject(HEADERS.options, row));
 
     const formRow = formRows.find((row) => row.id === formId);
 
     if (!formRow) {
       return res.status(404).json({ ok: false, error: "Form not found" });
+    }
+
+    if (user.role !== "admin" && !isPublishedStatus(formRow.status)) {
+      return res.status(403).json({ ok: false, error: "Form unavailable" });
     }
 
     const sections = sectionRows
@@ -198,6 +207,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const form = {
       id: formRow.id,
       title: formRow.title,
+      status: formRow.status,
       sections
     };
 

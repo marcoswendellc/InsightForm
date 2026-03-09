@@ -3,7 +3,7 @@ import type { FormDefinition, Mode, QuestionType, GoTo } from "./types";
 import { createEmptyForm } from "./types";
 import { initialState, reducer } from "./reducer";
 
-const STORAGE_KEY = "insight_form_builder_v1";
+export const STORAGE_KEY = "insight_form_builder_v1";
 
 function loadDraft(): FormDefinition | null {
   try {
@@ -23,7 +23,7 @@ function saveDraft(form: FormDefinition) {
   }
 }
 
-function clearDraft() {
+export function clearFormDraft() {
   try {
     localStorage.removeItem(STORAGE_KEY);
   } catch {
@@ -31,13 +31,34 @@ function clearDraft() {
   }
 }
 
+async function fetchJson(url: string, init?: RequestInit) {
+  const response = await fetch(url, init);
+  const rawText = await response.text();
+
+  let data: any = null;
+
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    throw new Error(rawText || "Resposta inválida do servidor.");
+  }
+
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || "Não foi possível concluir a operação.");
+  }
+
+  return data;
+}
+
 export function useFormBuilder() {
   const seed = useMemo(() => loadDraft(), []);
   const [state, dispatch] = useReducer(reducer, initialState(seed ?? undefined));
 
   useEffect(() => {
-    saveDraft(state.form);
-  }, [state.form]);
+    if (state.mode === "builder") {
+      saveDraft(state.form);
+    }
+  }, [state.form, state.mode]);
 
   const actions = useMemo(() => {
     return {
@@ -47,9 +68,14 @@ export function useFormBuilder() {
         const hard = !!opts?.hard;
 
         if (hard) {
-          clearDraft();
-          dispatch({ type: "IMPORT_FORM", form: createEmptyForm() });
-          dispatch({ type: "SET_ACTIVE_SECTION", sectionId: null });
+          clearFormDraft();
+          const emptyForm = createEmptyForm();
+
+          dispatch({ type: "IMPORT_FORM", form: emptyForm });
+          dispatch({
+            type: "SET_ACTIVE_SECTION",
+            sectionId: emptyForm.sections?.[0]?.id ?? null
+          });
           dispatch({ type: "SET_MODE", mode: "builder" });
           return;
         }
@@ -63,6 +89,7 @@ export function useFormBuilder() {
         dispatch({ type: "SET_ACTIVE_SECTION", sectionId }),
 
       addSection: () => dispatch({ type: "ADD_SECTION" }),
+
       removeSection: (sectionId: string) =>
         dispatch({ type: "REMOVE_SECTION", sectionId }),
 
@@ -129,30 +156,36 @@ export function useFormBuilder() {
         dispatch({ type: "REMOVE_OPTION", sectionId, questionId, index }),
 
       importEmpty: () => {
-        clearDraft();
-        dispatch({ type: "IMPORT_FORM", form: createEmptyForm() });
+        clearFormDraft();
+        const emptyForm = createEmptyForm();
+
+        dispatch({ type: "IMPORT_FORM", form: emptyForm });
+        dispatch({
+          type: "SET_ACTIVE_SECTION",
+          sectionId: emptyForm.sections?.[0]?.id ?? null
+        });
+        dispatch({ type: "SET_MODE", mode: "builder" });
       },
 
-      importForm: (form: FormDefinition) =>
-        dispatch({ type: "IMPORT_FORM", form }),
+      importForm: (form: FormDefinition) => {
+        clearFormDraft();
+        dispatch({ type: "IMPORT_FORM", form });
+        dispatch({
+          type: "SET_ACTIVE_SECTION",
+          sectionId: form.sections?.[0]?.id ?? null
+        });
+      },
 
       load: async (formId: string) => {
-        const response = await fetch(`/api/forms/get?id=${encodeURIComponent(formId)}`);
-        const rawText = await response.text();
+        const data = await fetchJson(
+          `/api/forms/get?id=${encodeURIComponent(formId)}`
+        );
 
-        let data: any = null;
-
-        try {
-          data = rawText ? JSON.parse(rawText) : null;
-        } catch {
-          throw new Error(rawText || "Resposta inválida ao carregar formulário.");
+        if (!data?.form) {
+          throw new Error("Não foi possível carregar o formulário.");
         }
 
-        if (!response.ok || !data?.ok || !data?.form) {
-          throw new Error(data?.error || "Não foi possível carregar o formulário.");
-        }
-
-        clearDraft();
+        clearFormDraft();
         dispatch({ type: "IMPORT_FORM", form: data.form });
         dispatch({
           type: "SET_ACTIVE_SECTION",

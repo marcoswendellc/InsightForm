@@ -1,22 +1,17 @@
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
-import { Layout, Topbar, Brand, Nav, NavItem, Content, Right, Chip, Btn } from "./styles";
+import { Layout, Topbar, Brand, Content, Right, Chip, Btn } from "./styles";
 
 export function MainLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const isAdmin = user?.role === "admin";
+  //const isAdmin = user?.role === "admin";
 
   return (
     <Layout>
       <Topbar>
         <Brand>Briefing Builder</Brand>
-
-        <Nav>
-          <NavItem as={NavLink} to="/briefing">Criar briefing</NavItem>
-          {isAdmin && <NavItem as={NavLink} to="/forms">Formulário</NavItem>}
-        </Nav>
 
         <Right>
           <Chip>{user?.name} • {user?.role}</Chip>

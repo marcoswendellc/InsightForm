@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
+import { getUserFromRequest, isPublishedStatus } from "../_auth.js";
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -104,13 +105,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const user = getUserFromRequest(req);
+
+    if (!user) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
     assertEnv();
     const sheets = await getSheetsClient();
 
     const formsRaw = await readTab(sheets, TAB_NAME);
     const formsRows = await ensureHeaderIfEmpty(sheets, TAB_NAME, HEADERS, formsRaw);
 
-    const forms = formsRows
+    let forms = formsRows
       .slice(1)
       .map((row) => rowToObject(HEADERS, row))
       .filter((row) => row.id)
@@ -122,6 +129,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updated_at: row.updated_at,
         published_at: row.published_at
       }));
+
+    if (user.role !== "admin") {
+      forms = forms.filter((form) => isPublishedStatus(form.status));
+    }
 
     return res.status(200).json({
       ok: true,

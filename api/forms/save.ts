@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
 import crypto from "crypto";
+import { getUserFromRequest } from "../_auth.js";
 
 const uuid = () => crypto.randomUUID();
 
@@ -198,6 +199,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const user = getUserFromRequest(req);
+
+    if (!user) {
+      return res.status(401).json({ ok: false, error: "Unauthorized" });
+    }
+
+    if (user.role !== "admin") {
+      return res.status(403).json({ ok: false, error: "Forbidden" });
+    }
+
     const body = normalizeBody(req.body as SaveRequestBody);
 
     if (!body?.title || !Array.isArray(body.sections)) {

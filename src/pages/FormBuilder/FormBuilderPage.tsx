@@ -5,11 +5,14 @@ import {
   Eye,
   FileText,
   FloppyDisk,
-  FolderOpen
+  FolderOpen,
+  PaperPlaneTilt
 } from "phosphor-react";
 
+import { useAuth } from "../../auth/AuthContext";
 import FormPreview from "./components/FormPreview";
-import { useFormBuilder } from "./useFormBuilder";
+import FormResponsePage from "./components/FormResponsePage";
+import { useFormBuilder, STORAGE_KEY } from "./useFormBuilder";
 import type { Mode, QuestionType } from "./types";
 
 import SideToolbar from "./components/SideToolbar";
@@ -35,6 +38,7 @@ type ListedForm = {
 
 function formatDate(value?: string) {
   if (!value) return "Sem data";
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
@@ -44,8 +48,26 @@ function formatDate(value?: string) {
   });
 }
 
+async function parseJsonResponse(response: Response) {
+  const rawText = await response.text();
+
+  let data: any = null;
+  try {
+    data = rawText ? JSON.parse(rawText) : null;
+  } catch {
+    throw new Error(rawText || "Resposta inválida do servidor.");
+  }
+
+  if (!response.ok || !data?.ok) {
+    throw new Error(data?.error || "Não foi possível concluir a operação.");
+  }
+
+  return data;
+}
+
 export default function FormBuilderPage() {
   const [params, setParams] = useSearchParams();
+  const { user, authHeader } = useAuth();
   const { state, actions } = useFormBuilder();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -58,15 +80,21 @@ export default function FormBuilderPage() {
   const [isLoadingForm, setIsLoadingForm] = useState(false);
   const [loadFormError, setLoadFormError] = useState("");
 
+  const isAdmin = user?.role === "admin";
+
   const isNew = params.get("new") === "1";
   const formId = params.get("id");
 
   const urlMode = (params.get("mode") as Mode | null) ?? "builder";
   const isPreview = urlMode === "preview";
+  const isRespond = urlMode === "respond";
 
   const shouldShowList = !formId && !isNew;
 
-  const updateParams = (fn: (next: URLSearchParams) => void, replace = true) => {
+  const updateParams = (
+    fn: (next: URLSearchParams) => void,
+    replace = true
+  ) => {
     const next = new URLSearchParams(params);
     fn(next);
     setParams(next, { replace });
@@ -75,6 +103,11 @@ export default function FormBuilderPage() {
   useEffect(() => {
     if (shouldShowList) {
       document.title = "Formulários";
+      return;
+    }
+
+    if (isRespond) {
+      document.title = "Responder formulário";
       return;
     }
 
@@ -89,32 +122,36 @@ export default function FormBuilderPage() {
     }
 
     document.title = "Editar formulário";
-  }, [shouldShowList, isPreview, isNew]);
+  }, [shouldShowList, isRespond, isPreview, isNew]);
 
   useEffect(() => {
     if (shouldShowList) return;
 
-    actions.setMode(urlMode);
+    const safeMode: Mode =
+      isRespond || isPreview || isAdmin ? urlMode : "respond";
 
-    if (urlMode === "preview") {
+    actions.setMode(safeMode);
+
+    if (safeMode === "preview" || safeMode === "respond") {
       actions.setActiveSection(null);
     }
-  }, [urlMode, shouldShowList, actions]);
+  }, [urlMode, shouldShowList, actions, isRespond, isPreview, isAdmin]);
 
   useEffect(() => {
     if (!isNew) return;
+    if (!isAdmin) return;
 
     actions.reset({ hard: true });
 
     try {
-      localStorage.removeItem("insightform:draft");
+      localStorage.removeItem(STORAGE_KEY);
     } catch {}
 
     updateParams((p) => {
       p.delete("new");
       p.delete("mode");
     });
-  }, [isNew, actions]);
+  }, [isNew, isAdmin, actions]);
 
   useEffect(() => {
     if (isNew) return;
@@ -133,7 +170,10 @@ export default function FormBuilderPage() {
         if (cancelled) return;
 
         const message =
-          error instanceof Error ? error.message : "Erro ao carregar formulário.";
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar formulário.";
+
         setLoadFormError(message);
       } finally {
         if (!cancelled) {
@@ -157,24 +197,20 @@ export default function FormBuilderPage() {
       setFormsError("");
 
       try {
-        const response = await fetch("/api/forms/list");
-        const rawText = await response.text();
+        const response = await fetch("/api/forms/list", {
+          headers: {
+            ...authHeader()
+          }
+        });
 
-        let data: any = null;
-        try {
-          data = rawText ? JSON.parse(rawText) : null;
-        } catch {
-          throw new Error(rawText || "Resposta inválida ao listar formulários.");
-        }
-
-        if (!response.ok || !data?.ok) {
-          throw new Error(data?.error || "Não foi possível carregar os formulários.");
-        }
-
+        const data = await parseJsonResponse(response);
         setForms(Array.isArray(data.forms) ? data.forms : []);
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "Erro ao carregar formulários.";
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar formulários.";
+
         setFormsError(message);
         setForms([]);
       } finally {
@@ -183,7 +219,7 @@ export default function FormBuilderPage() {
     };
 
     loadForms();
-  }, [shouldShowList]);
+  }, [shouldShowList, authHeader]);
 
   const setMode = (mode: Mode) => {
     updateParams((p) => {
@@ -193,31 +229,55 @@ export default function FormBuilderPage() {
   };
 
   const handleNew = () => {
-    updateParams((p) => {
-      p.set("new", "1");
-      p.delete("id");
-      p.delete("mode");
-    }, true);
+    if (!isAdmin) return;
+
+    updateParams(
+      (p) => {
+        p.set("new", "1");
+        p.delete("id");
+        p.delete("mode");
+      },
+      true
+    );
   };
 
-  const handleOpenForm = (id: string) => {
-    updateParams((p) => {
-      p.set("id", id);
-      p.delete("new");
-      p.delete("mode");
-    }, true);
+  const handleRespondForm = (id: string) => {
+    updateParams(
+      (p) => {
+        p.set("id", id);
+        p.set("mode", "respond");
+        p.delete("new");
+      },
+      true
+    );
+  };
+
+  const handleEditForm = (id: string) => {
+    if (!isAdmin) return;
+
+    updateParams(
+      (p) => {
+        p.set("id", id);
+        p.set("mode", "builder");
+        p.delete("new");
+      },
+      true
+    );
   };
 
   const handleBackToList = () => {
-    updateParams((p) => {
-      p.delete("id");
-      p.delete("new");
-      p.delete("mode");
-    }, true);
+    updateParams(
+      (p) => {
+        p.delete("id");
+        p.delete("new");
+        p.delete("mode");
+      },
+      true
+    );
   };
 
   const handleSave = async () => {
-    if (isPreview) return;
+    if (isPreview || isRespond || !isAdmin) return;
 
     setIsSaving(true);
     setSaveMessage("");
@@ -231,23 +291,13 @@ export default function FormBuilderPage() {
       const response = await fetch("/api/forms/save", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...authHeader()
         },
         body: JSON.stringify(payload)
       });
 
-      const rawText = await response.text();
-
-      let data: any = null;
-      try {
-        data = rawText ? JSON.parse(rawText) : null;
-      } catch {
-        throw new Error(rawText || "O servidor retornou uma resposta inválida.");
-      }
-
-      if (!response.ok || !data?.ok) {
-        throw new Error(data?.error || "Não foi possível salvar o formulário.");
-      }
+      const data = await parseJsonResponse(response);
 
       if (data.id) {
         updateParams((p) => {
@@ -260,6 +310,7 @@ export default function FormBuilderPage() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Erro ao salvar o formulário.";
+
       setSaveMessage(message);
     } finally {
       setIsSaving(false);
@@ -274,8 +325,14 @@ export default function FormBuilderPage() {
   };
 
   const canShowToolbar = useMemo(() => {
-    return !shouldShowList && state.mode === "builder" && !!state.activeSectionId;
-  }, [shouldShowList, state.mode, state.activeSectionId]);
+    return (
+      isAdmin &&
+      !shouldShowList &&
+      !isRespond &&
+      state.mode === "builder" &&
+      !!state.activeSectionId
+    );
+  }, [isAdmin, shouldShowList, isRespond, state.mode, state.activeSectionId]);
 
   if (shouldShowList) {
     return (
@@ -294,15 +351,17 @@ export default function FormBuilderPage() {
               </div>
 
               <Subtle>
-                Crie um novo formulário ou abra um formulário salvo para continuar.
+                Escolha um formulário para responder ou editar.
               </Subtle>
             </div>
 
-            <Actions>
-              <IconBtn title="Novo formulário" onClick={handleNew}>
-                <FileText size={20} weight="bold" />
-              </IconBtn>
-            </Actions>
+            {isAdmin && (
+              <Actions>
+                <IconBtn title="Novo formulário" onClick={handleNew}>
+                  <FileText size={20} weight="bold" />
+                </IconBtn>
+              </Actions>
+            )}
           </Header>
 
           <Body data-preview="false">
@@ -339,7 +398,13 @@ export default function FormBuilderPage() {
                   boxShadow: "0 10px 30px rgba(0,0,0,0.08)"
                 }}
               >
-                <div style={{ fontSize: 16, fontWeight: 600, color: "#202124" }}>
+                <div
+                  style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: "#202124"
+                  }}
+                >
                   Nenhum formulário encontrado
                 </div>
 
@@ -350,18 +415,18 @@ export default function FormBuilderPage() {
                     lineHeight: 1.5
                   }}
                 >
-                  Clique no botão de novo formulário para começar.
+                  {isAdmin
+                    ? "Clique no botão de novo formulário para começar."
+                    : "Nenhum formulário disponível no momento."}
                 </div>
               </div>
             ) : (
               forms.map((form) => (
-                <button
+                <div
                   key={form.id}
-                  onClick={() => handleOpenForm(form.id)}
                   style={{
                     width: "100%",
                     background: "#fff",
-                    border: "none",
                     borderRadius: 16,
                     padding: 18,
                     boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
@@ -369,11 +434,18 @@ export default function FormBuilderPage() {
                     alignItems: "center",
                     justifyContent: "space-between",
                     gap: 16,
-                    cursor: "pointer",
-                    textAlign: "left"
+                    flexWrap: "wrap"
                   }}
                 >
-                  <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 14,
+                      alignItems: "center",
+                      flex: 1,
+                      minWidth: 220
+                    }}
+                  >
                     <div
                       style={{
                         width: 42,
@@ -414,14 +486,44 @@ export default function FormBuilderPage() {
 
                   <div
                     style={{
-                      color: "#673ab7",
-                      fontSize: 13,
-                      fontWeight: 700
+                      display: "flex",
+                      gap: 10,
+                      flexWrap: "wrap"
                     }}
                   >
-                    Abrir
+                    <button
+                      onClick={() => handleRespondForm(form.id)}
+                      style={{
+                        border: "none",
+                        borderRadius: 10,
+                        padding: "10px 14px",
+                        background: "#673ab7",
+                        color: "#fff",
+                        fontWeight: 700,
+                        cursor: "pointer"
+                      }}
+                    >
+                      Responder
+                    </button>
+
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleEditForm(form.id)}
+                        style={{
+                          border: "1px solid rgba(103,58,183,0.25)",
+                          borderRadius: 10,
+                          padding: "10px 14px",
+                          background: "#fff",
+                          color: "#673ab7",
+                          fontWeight: 700,
+                          cursor: "pointer"
+                        }}
+                      >
+                        Editar
+                      </button>
+                    )}
                   </div>
-                </button>
+                </div>
               ))
             )}
           </Body>
@@ -431,15 +533,15 @@ export default function FormBuilderPage() {
   }
 
   return (
-    <Page data-preview={isPreview ? "true" : "false"}>
-      <Center data-preview={isPreview ? "true" : "false"}>
+    <Page data-preview={isPreview || isRespond ? "true" : "false"}>
+      <Center data-preview={isPreview || isRespond ? "true" : "false"}>
         <Header>
           <div style={{ flex: 1, minWidth: 260 }}>
             <TitleInput
               placeholder="Nome do formulário"
               value={state.form.title}
               onChange={(e) => actions.setTitle(e.target.value)}
-              disabled={isPreview || isLoadingForm}
+              disabled={!isAdmin || isPreview || isRespond || isLoadingForm}
             />
 
             <Subtle>
@@ -447,6 +549,8 @@ export default function FormBuilderPage() {
                 ? "Carregando formulário..."
                 : loadFormError
                 ? loadFormError
+                : isRespond
+                ? "Preencha o formulário e envie suas respostas."
                 : isPreview
                 ? "Pré-visualização do formulário"
                 : saveMessage ||
@@ -455,7 +559,7 @@ export default function FormBuilderPage() {
           </div>
 
           <Actions>
-            {!isPreview && (
+            {!isPreview && !isRespond && isAdmin && (
               <IconBtn
                 title={isSaving ? "Salvando..." : "Salvar"}
                 onClick={handleSave}
@@ -469,31 +573,39 @@ export default function FormBuilderPage() {
               <FolderOpen size={20} weight="bold" />
             </IconBtn>
 
-            <IconBtn
-              title="Editar"
-              data-active={!isPreview}
-              onClick={() => setMode("builder")}
-              disabled={isLoadingForm}
-            >
-              <PencilSimple size={20} weight="bold" />
-            </IconBtn>
+            {isAdmin && !isRespond && (
+              <>
+                <IconBtn
+                  title="Editar"
+                  data-active={!isPreview}
+                  onClick={() => setMode("builder")}
+                  disabled={isLoadingForm}
+                >
+                  <PencilSimple size={20} weight="bold" />
+                </IconBtn>
 
-            <IconBtn
-              title="Visualizar"
-              data-active={isPreview}
-              onClick={() => setMode("preview")}
-              disabled={isLoadingForm}
-            >
-              <Eye size={20} weight="bold" />
-            </IconBtn>
+                <IconBtn
+                  title="Visualizar"
+                  data-active={isPreview}
+                  onClick={() => setMode("preview")}
+                  disabled={isLoadingForm}
+                >
+                  <Eye size={20} weight="bold" />
+                </IconBtn>
 
-            <IconBtn title="Novo formulário" onClick={handleNew}>
-              <FileText size={20} weight="bold" />
-            </IconBtn>
+                <IconBtn title="Responder" onClick={() => setMode("respond")}>
+                  <PaperPlaneTilt size={20} weight="bold" />
+                </IconBtn>
+
+                <IconBtn title="Novo formulário" onClick={handleNew}>
+                  <FileText size={20} weight="bold" />
+                </IconBtn>
+              </>
+            )}
           </Actions>
         </Header>
 
-        <Body data-preview={isPreview ? "true" : "false"}>
+        <Body data-preview={isPreview || isRespond ? "true" : "false"}>
           {isLoadingForm ? (
             <div
               style={{
@@ -518,6 +630,8 @@ export default function FormBuilderPage() {
             >
               {loadFormError}
             </div>
+          ) : isRespond ? (
+            <FormResponsePage form={state.form} />
           ) : isPreview ? (
             <FormPreview form={state.form} />
           ) : (
@@ -551,7 +665,12 @@ export default function FormBuilderPage() {
                   actions.updateOption(section.id, questionId, optIndex, value)
                 }
                 onUpdateOptionGoTo={(questionId, optIndex, goTo) =>
-                  actions.updateOptionGoTo(section.id, questionId, optIndex, goTo)
+                  actions.updateOptionGoTo(
+                    section.id,
+                    questionId,
+                    optIndex,
+                    goTo
+                  )
                 }
                 onRemoveOption={(questionId, optIndex) =>
                   actions.removeOption(section.id, questionId, optIndex)

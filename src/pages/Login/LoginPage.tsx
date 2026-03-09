@@ -15,16 +15,16 @@ export default function LoginPage() {
 
   // se já estiver logado, manda pra briefing direto
   if (isAuthenticated) {
-    navigate("/briefing", { replace: true });
+  navigate("/forms", { replace: true });
   }
 
-  const from = (location.state as any)?.from?.pathname ?? "/briefing";
+  const from = (location.state as any)?.from?.pathname ?? "/forms";
 
   return (
     <Page>
       <Card>
         <Title>Entrar</Title>
-        <Subtitle>Bem-vindo! Vamos criar briefs que não dão retrabalho 😄</Subtitle>
+        <Subtitle>Bem-vindo ao Forms</Subtitle>
 
         <Field
           value={username}
@@ -58,8 +58,6 @@ export default function LoginPage() {
             {loading ? "Entrando..." : "Entrar"}
           </Btn>
         </Row>
-
-        <Hint>Use seu usuário do banco (API) 🙂</Hint>
       </Card>
     </Page>
   );

@@ -1,32 +1,96 @@
-// api/_auth.ts
+import type { VercelRequest } from "@vercel/node";
 import jwt from "jsonwebtoken";
+
+export type Role = "user" | "admin";
 
 export type JwtUser = {
   id: string;
   name: string;
   username: string;
-  role: "user" | "admin";
+  role: Role;
 };
 
-type JwtPayload = JwtUser & {
-  iat?: number;
-  exp?: number;
-};
+export type SafeUser = JwtUser;
 
-function getJwtSecret() {
-  const secret = process.env.JWT_SECRET;
-  if (!secret) throw new Error("Missing JWT_SECRET env var");
-  return secret;
+const JWT_SECRET = process.env.JWT_SECRET;
+
+function assertJwtSecret() {
+  if (!JWT_SECRET) {
+    throw new Error("Missing JWT_SECRET");
+  }
 }
 
 export function signToken(user: JwtUser) {
-  const secret = getJwtSecret();
+  assertJwtSecret();
 
-  // Ajuste expiração como quiser
-  return jwt.sign(user, secret, { expiresIn: "7d" });
+  return jwt.sign(user, JWT_SECRET!, {
+    expiresIn: "7d"
+  });
 }
 
-export function verifyToken(token: string): JwtPayload {
-  const secret = getJwtSecret();
-  return jwt.verify(token, secret) as JwtPayload;
+function getBearerToken(req: VercelRequest): string | null {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader) return null;
+
+  const [scheme, token] = authHeader.split(" ");
+
+  if (scheme !== "Bearer" || !token) {
+    return null;
+  }
+
+  return token.trim();
+}
+
+export function verifyToken(token: string): JwtUser | null {
+  try {
+    assertJwtSecret();
+
+    const decoded = jwt.verify(token, JWT_SECRET!) as JwtUser;
+
+    if (!decoded?.id || !decoded?.username || !decoded?.role) {
+      return null;
+    }
+
+    return {
+      id: decoded.id,
+      name: decoded.name,
+      username: decoded.username,
+      role: decoded.role
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function getUserFromRequest(req: VercelRequest): JwtUser | null {
+  const token = getBearerToken(req);
+  if (!token) return null;
+
+  return verifyToken(token);
+}
+
+export function requireUser(req: VercelRequest): JwtUser {
+  const user = getUserFromRequest(req);
+
+  if (!user) {
+    throw new Error("Unauthorized");
+  }
+
+  return user;
+}
+
+export function requireAdmin(req: VercelRequest): JwtUser {
+  const user = requireUser(req);
+
+  if (user.role !== "admin") {
+    throw new Error("Forbidden");
+  }
+
+  return user;
+}
+
+export function isPublishedStatus(status?: string) {
+  const normalized = String(status ?? "").trim().toLowerCase();
+  return normalized === "published" || normalized === "active";
 }
