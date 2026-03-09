@@ -148,11 +148,14 @@ export default function FormBuilderPage() {
       localStorage.removeItem(STORAGE_KEY);
     } catch {}
 
-    updateParams((p) => {
-      p.delete("new");
-      p.delete("mode");
-    });
-  }, [isNew, isAdmin, actions]);
+    if (params.get("mode") !== "builder" || params.get("id")) {
+      updateParams((p) => {
+        p.set("new", "1");
+        p.set("mode", "builder");
+        p.delete("id");
+      });
+    }
+  }, [isNew, isAdmin, actions, params]);
 
   useEffect(() => {
     if (isNew) return;
@@ -235,8 +238,8 @@ export default function FormBuilderPage() {
     updateParams(
       (p) => {
         p.set("new", "1");
+        p.set("mode", "builder");
         p.delete("id");
-        p.delete("mode");
       },
       true
     );
