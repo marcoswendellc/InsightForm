@@ -62,13 +62,16 @@ export function useFormBuilder() {
 
   const actions = useMemo(() => {
     return {
-      setMode: (mode: Mode) => dispatch({ type: "SET_MODE", mode }),
+      setMode: (mode: Mode) => {
+        dispatch({ type: "SET_MODE", mode });
+      },
 
       reset: (opts?: { hard?: boolean }) => {
         const hard = !!opts?.hard;
 
         if (hard) {
           clearFormDraft();
+
           const emptyForm = createEmptyForm();
 
           dispatch({ type: "IMPORT_FORM", form: emptyForm });
@@ -83,29 +86,40 @@ export function useFormBuilder() {
         dispatch({ type: "RESET_FORM" });
       },
 
-      setTitle: (title: string) => dispatch({ type: "SET_TITLE", title }),
+      setTitle: (title: string) => {
+        dispatch({ type: "SET_TITLE", title });
+      },
 
-      setActiveSection: (sectionId: string | null) =>
-        dispatch({ type: "SET_ACTIVE_SECTION", sectionId }),
+      setActiveSection: (sectionId: string | null) => {
+        dispatch({ type: "SET_ACTIVE_SECTION", sectionId });
+      },
 
-      addSection: () => dispatch({ type: "ADD_SECTION" }),
+      addSection: () => {
+        dispatch({ type: "ADD_SECTION" });
+      },
 
-      removeSection: (sectionId: string) =>
-        dispatch({ type: "REMOVE_SECTION", sectionId }),
+      removeSection: (sectionId: string) => {
+        dispatch({ type: "REMOVE_SECTION", sectionId });
+      },
 
       updateSection: (
         sectionId: string,
         data: Partial<{ title: string; description: string }>
-      ) => dispatch({ type: "UPDATE_SECTION", sectionId, data }),
+      ) => {
+        dispatch({ type: "UPDATE_SECTION", sectionId, data });
+      },
 
-      updateSectionGoTo: (sectionId: string, goTo: GoTo) =>
-        dispatch({ type: "UPDATE_SECTION_GOTO", sectionId, goTo }),
+      updateSectionGoTo: (sectionId: string, goTo: GoTo) => {
+        dispatch({ type: "UPDATE_SECTION_GOTO", sectionId, goTo });
+      },
 
-      addQuestion: (sectionId: string, qType: QuestionType) =>
-        dispatch({ type: "ADD_QUESTION", sectionId, qType }),
+      addQuestion: (sectionId: string, qType: QuestionType) => {
+        dispatch({ type: "ADD_QUESTION", sectionId, qType });
+      },
 
-      removeQuestion: (sectionId: string, questionId: string) =>
-        dispatch({ type: "REMOVE_QUESTION", sectionId, questionId }),
+      removeQuestion: (sectionId: string, questionId: string) => {
+        dispatch({ type: "REMOVE_QUESTION", sectionId, questionId });
+      },
 
       updateQuestion: (
         sectionId: string,
@@ -116,47 +130,64 @@ export function useFormBuilder() {
           type: QuestionType;
           jumpEnabled: boolean;
         }>
-      ) => dispatch({ type: "UPDATE_QUESTION", sectionId, questionId, data }),
+      ) => {
+        dispatch({ type: "UPDATE_QUESTION", sectionId, questionId, data });
+      },
 
-      addOption: (sectionId: string, questionId: string) =>
-        dispatch({ type: "ADD_OPTION", sectionId, questionId }),
+      addOption: (sectionId: string, questionId: string) => {
+        dispatch({ type: "ADD_OPTION", sectionId, questionId });
+      },
 
-      addOtherOption: (sectionId: string, questionId: string) =>
-        dispatch({ type: "ADD_OTHER_OPTION", sectionId, questionId }),
+      addOtherOption: (sectionId: string, questionId: string) => {
+        dispatch({ type: "ADD_OTHER_OPTION", sectionId, questionId });
+      },
 
       updateOption: (
         sectionId: string,
         questionId: string,
         index: number,
         value: string
-      ) =>
+      ) => {
         dispatch({
           type: "UPDATE_OPTION",
           sectionId,
           questionId,
           index,
           value
-        }),
+        });
+      },
 
       updateOptionGoTo: (
         sectionId: string,
         questionId: string,
         index: number,
         goTo: GoTo
-      ) =>
+      ) => {
         dispatch({
           type: "UPDATE_OPTION_GOTO",
           sectionId,
           questionId,
           index,
           goTo
-        }),
+        });
+      },
 
-      removeOption: (sectionId: string, questionId: string, index: number) =>
-        dispatch({ type: "REMOVE_OPTION", sectionId, questionId, index }),
+      removeOption: (
+        sectionId: string,
+        questionId: string,
+        index: number
+      ) => {
+        dispatch({
+          type: "REMOVE_OPTION",
+          sectionId,
+          questionId,
+          index
+        });
+      },
 
       importEmpty: () => {
         clearFormDraft();
+
         const emptyForm = createEmptyForm();
 
         dispatch({ type: "IMPORT_FORM", form: emptyForm });
@@ -169,6 +200,7 @@ export function useFormBuilder() {
 
       importForm: (form: FormDefinition) => {
         clearFormDraft();
+
         dispatch({ type: "IMPORT_FORM", form });
         dispatch({
           type: "SET_ACTIVE_SECTION",
@@ -176,9 +208,16 @@ export function useFormBuilder() {
         });
       },
 
-      load: async (formId: string) => {
+      load: async (
+        formId: string,
+        headers?: Record<string, string>
+      ) => {
         const data = await fetchJson(
-          `/api/forms/get?id=${encodeURIComponent(formId)}`
+          `/api/forms/get?id=${encodeURIComponent(formId)}`,
+          {
+            method: "GET",
+            headers
+          }
         );
 
         if (!data?.form) {
@@ -186,6 +225,7 @@ export function useFormBuilder() {
         }
 
         clearFormDraft();
+
         dispatch({ type: "IMPORT_FORM", form: data.form });
         dispatch({
           type: "SET_ACTIVE_SECTION",
@@ -196,8 +236,15 @@ export function useFormBuilder() {
   }, []);
 
   const activeSection = useMemo(() => {
-    return state.form.sections.find((s) => s.id === state.activeSectionId) ?? null;
+    return (
+      state.form.sections.find((section) => section.id === state.activeSectionId) ??
+      null
+    );
   }, [state.form.sections, state.activeSectionId]);
 
-  return { state, actions, activeSection };
+  return {
+    state,
+    actions,
+    activeSection
+  };
 }

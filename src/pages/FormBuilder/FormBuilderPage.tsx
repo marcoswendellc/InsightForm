@@ -52,6 +52,7 @@ async function parseJsonResponse(response: Response) {
   const rawText = await response.text();
 
   let data: any = null;
+
   try {
     data = rawText ? JSON.parse(rawText) : null;
   } catch {
@@ -165,7 +166,7 @@ export default function FormBuilderPage() {
       setSaveMessage("");
 
       try {
-        await actions.load(formId);
+        await actions.load(formId, authHeader());
       } catch (error) {
         if (cancelled) return;
 
@@ -187,7 +188,7 @@ export default function FormBuilderPage() {
     return () => {
       cancelled = true;
     };
-  }, [formId, isNew, actions]);
+  }, [formId, isNew, actions, authHeader]);
 
   useEffect(() => {
     if (!shouldShowList) return;
@@ -593,7 +594,11 @@ export default function FormBuilderPage() {
                   <Eye size={20} weight="bold" />
                 </IconBtn>
 
-                <IconBtn title="Responder" onClick={() => setMode("respond")}>
+                <IconBtn
+                  title="Responder"
+                  onClick={() => setMode("respond")}
+                  disabled={isLoadingForm}
+                >
                   <PaperPlaneTilt size={20} weight="bold" />
                 </IconBtn>
 

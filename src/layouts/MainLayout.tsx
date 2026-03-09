@@ -11,7 +11,7 @@ export function MainLayout() {
   return (
     <Layout>
       <Topbar>
-        <Brand>Briefing Builder</Brand>
+        <Brand>Formulários</Brand>
 
         <Right>
           <Chip>{user?.name} • {user?.role}</Chip>
