@@ -223,7 +223,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ ok: false, error: "Unauthorized" });
     }
 
-    const formId = String(req.query.formId ?? "").trim();
+    const formId =
+      String(req.query.formId ?? "").trim() ||
+      String(req.query.id ?? "").trim();
     const responseId = String(req.query.responseId ?? "").trim();
 
     if (!formId) {
