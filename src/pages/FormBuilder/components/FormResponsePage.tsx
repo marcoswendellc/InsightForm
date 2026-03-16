@@ -150,7 +150,7 @@ export default function FormResponsePrintPage({ form }: Props) {
 
       try {
         const response = await fetch(
-          `/api/forms/responses/get?formId=${encodeURIComponent(
+          `/api/forms/get?formId=${encodeURIComponent(
             currentFormId
           )}&responseId=${encodeURIComponent(currentResponseId)}`,
           {
