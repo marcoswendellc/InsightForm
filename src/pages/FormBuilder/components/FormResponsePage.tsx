@@ -101,8 +101,11 @@ export default function FormResponsePage({ form }: Props) {
   }, [form.id]);
 
   useEffect(() => {
+    const currentFormId = form.id?.trim() || "";
+
     if (!isEditResponse) return;
-    if (!form.id) return;
+    if (!responseId.trim()) return;
+    if (!currentFormId) return;
 
     let cancelled = false;
 
@@ -114,7 +117,7 @@ export default function FormResponsePage({ form }: Props) {
       try {
         const response = await fetch(
           `/api/forms/responses/get?formId=${encodeURIComponent(
-            form.id
+            currentFormId
           )}&responseId=${encodeURIComponent(responseId)}`,
           {
             headers: {
