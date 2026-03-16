@@ -129,9 +129,16 @@ export default function FormResponsePrintPage({ form }: Props) {
   const responseId = params.get("responseId")?.trim() || "";
 
   useEffect(() => {
-    if (!form.id || !responseId) {
+    const currentFormId = form.id?.trim() || "";
+    const currentResponseId = responseId.trim();
+
+    if (!currentResponseId) {
       setIsLoading(false);
       setLoadError("Resposta não informada.");
+      return;
+    }
+
+    if (!currentFormId) {
       return;
     }
 
@@ -144,8 +151,8 @@ export default function FormResponsePrintPage({ form }: Props) {
       try {
         const response = await fetch(
           `/api/forms/responses/get?formId=${encodeURIComponent(
-            form.id
-          )}&responseId=${encodeURIComponent(responseId)}`,
+            currentFormId
+          )}&responseId=${encodeURIComponent(currentResponseId)}`,
           {
             headers: {
               ...authHeader()
