@@ -4,6 +4,7 @@ export type SafeUser = {
   id: string;
   name: string;
   username: string;
+  email?: string;
   role: "user" | "admin";
 };
 
@@ -44,6 +45,18 @@ function loadJSON<T>(key: string): T | null {
   }
 }
 
+function normalizeUser(input: SafeUser | null | undefined): SafeUser | null {
+  if (!input) return null;
+
+  return {
+    id: String(input.id ?? "").trim(),
+    name: String(input.name ?? "").trim(),
+    username: String(input.username ?? "").trim(),
+    email: input.email ? String(input.email).trim() : undefined,
+    role: input.role === "admin" ? "admin" : "user"
+  };
+}
+
 async function safeReadJson<T>(r: Response): Promise<T | null> {
   try {
     return (await r.json()) as T;
@@ -53,7 +66,9 @@ async function safeReadJson<T>(r: Response): Promise<T | null> {
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<SafeUser | null>(() => loadJSON<SafeUser>(USER_KEY));
+  const [user, setUser] = useState<SafeUser | null>(() =>
+    normalizeUser(loadJSON<SafeUser>(USER_KEY))
+  );
 
   const [token, setToken] = useState<string | null>(() => {
     try {
@@ -66,11 +81,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const persist = (nextUser: SafeUser | null, nextToken: string | null) => {
-    setUser(nextUser);
+    const normalizedUser = normalizeUser(nextUser);
+
+    setUser(normalizedUser);
     setToken(nextToken);
 
-    if (nextUser) {
-      localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+    if (normalizedUser) {
+      localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
     } else {
       localStorage.removeItem(USER_KEY);
     }
@@ -87,9 +104,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const authHeader = (): Record<string, string> => {
-    const h: Record<string, string> = {};
-    if (token) h.Authorization = `Bearer ${token}`;
-      return h;
+    const headers: Record<string, string> = {};
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    return headers;
   };
 
   const refresh = async () => {
@@ -115,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       persist(data.user, token);
     } catch {
-      // falha de rede: mantém sessão
+      // falha de rede: mantém sessão atual
     } finally {
       setIsLoading(false);
     }
@@ -125,7 +146,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refresh();
   }, []);
 
-  const login = async (username: string, password: string): Promise<LoginResult> => {
+  const login = async (
+    username: string,
+    password: string
+  ): Promise<LoginResult> => {
     try {
       const r = await fetch("/api/auth/login", {
         method: "POST",
@@ -140,7 +164,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (!data.ok) {
-        return { ok: false, message: data.error ?? "Usuário ou senha inválidos." };
+        return {
+          ok: false,
+          message: data.error ?? "Usuário ou senha inválidos."
+        };
       }
 
       persist(data.user, data.token);

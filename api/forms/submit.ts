@@ -14,12 +14,16 @@ type SubmitAnswer = {
 type SubmitRequestBody = {
   formId?: string;
   formTitle?: string;
+  responseId?: string;
   respondentId?: string;
   respondentName?: string;
   respondentEmail?: string;
   source?: string;
+  mode?: "create" | "edit";
   answers?: SubmitAnswer[];
 };
+
+type SheetRowObject = Record<string, string>;
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -84,7 +88,9 @@ const HEADERS = {
 
 function assertEnv() {
   if (!SHEET_ID) throw new Error("Missing GOOGLE_SHEET_ID");
-  if (!SERVICE_ACCOUNT_EMAIL) throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  if (!SERVICE_ACCOUNT_EMAIL) {
+    throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  }
   if (!PRIVATE_KEY) throw new Error("Missing GOOGLE_PRIVATE_KEY");
 }
 
@@ -97,6 +103,13 @@ function rowToObject(
     obj[header] = String(row[index] ?? "");
   });
   return obj;
+}
+
+function objectToRow(
+  headers: readonly string[],
+  row: Record<string, string>
+): string[] {
+  return headers.map((header) => row[header] ?? "");
 }
 
 async function getSheetsClient() {
@@ -165,16 +178,207 @@ async function appendRows(
   });
 }
 
+async function replaceTabRows(
+  sheets: ReturnType<typeof google.sheets>,
+  tabName: string,
+  rows: string[][]
+) {
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: SHEET_ID!,
+    range: `${tabName}!A:Z`
+  });
+
+  if (!rows.length) return;
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SHEET_ID!,
+    range: `${tabName}!A1`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: rows
+    }
+  });
+}
+
+function normalizeBody(body: SubmitRequestBody) {
+  return {
+    formId: body.formId?.trim() ?? "",
+    formTitle: body.formTitle?.trim() ?? "",
+    responseId: body.responseId?.trim() ?? "",
+    respondentId: body.respondentId?.trim() ?? "",
+    respondentName: body.respondentName?.trim() ?? "",
+    respondentEmail: body.respondentEmail?.trim() ?? "",
+    source: body.source?.trim() ?? "web",
+    mode: body.mode === "edit" ? "edit" : "create",
+    answers: Array.isArray(body.answers) ? body.answers : []
+  };
+}
+
+function buildResponseItemRows(params: {
+  formId: string;
+  responseId: string;
+  answers: SubmitAnswer[];
+  questionsById: Map<string, SheetRowObject>;
+  optionsByQuestionId: Map<string, SheetRowObject[]>;
+}) {
+  const { formId, responseId, answers, questionsById, optionsByQuestionId } =
+    params;
+
+  const responseItemRows: string[][] = [];
+
+  for (const answer of answers) {
+    const question = questionsById.get(answer.questionId);
+    if (!question) continue;
+
+    const questionType = question.type;
+    const questionOptions = optionsByQuestionId.get(question.id) ?? [];
+    const sortOrder = String(question.sort_order ?? "");
+
+    if (questionType === "checkbox") {
+      const selectedIds = Array.isArray(answer.value) ? answer.value : [];
+
+      for (const selectedId of selectedIds) {
+        const selectedOption = questionOptions.find((opt) => opt.id === selectedId);
+
+        responseItemRows.push([
+          uuid(),
+          responseId,
+          formId,
+          question.section_id ?? "",
+          question.id,
+          question.label ?? "",
+          questionType,
+          selectedOption?.id ?? "",
+          selectedOption?.label ?? "",
+          "",
+          "",
+          "",
+          sortOrder
+        ]);
+      }
+
+      continue;
+    }
+
+    if (questionType === "multipleChoice") {
+      const selectedId = typeof answer.value === "string" ? answer.value : "";
+      const selectedOption = questionOptions.find((opt) => opt.id === selectedId);
+
+      responseItemRows.push([
+        uuid(),
+        responseId,
+        formId,
+        question.section_id ?? "",
+        question.id,
+        question.label ?? "",
+        questionType,
+        selectedOption?.id ?? "",
+        selectedOption?.label ?? "",
+        "",
+        "",
+        "",
+        sortOrder
+      ]);
+
+      continue;
+    }
+
+    if (questionType === "date") {
+      const dateValue = typeof answer.value === "string" ? answer.value : "";
+
+      responseItemRows.push([
+        uuid(),
+        responseId,
+        formId,
+        question.section_id ?? "",
+        question.id,
+        question.label ?? "",
+        questionType,
+        "",
+        "",
+        "",
+        dateValue,
+        "",
+        sortOrder
+      ]);
+
+      continue;
+    }
+
+    if (questionType === "boolean") {
+      const booleanValue = typeof answer.value === "string" ? answer.value : "";
+
+      responseItemRows.push([
+        uuid(),
+        responseId,
+        formId,
+        question.section_id ?? "",
+        question.id,
+        question.label ?? "",
+        questionType,
+        "",
+        "",
+        "",
+        "",
+        booleanValue,
+        sortOrder
+      ]);
+
+      continue;
+    }
+
+    const textValue = typeof answer.value === "string" ? answer.value : "";
+
+    responseItemRows.push([
+      uuid(),
+      responseId,
+      formId,
+      question.section_id ?? "",
+      question.id,
+      question.label ?? "",
+      questionType,
+      "",
+      "",
+      textValue,
+      "",
+      "",
+      sortOrder
+    ]);
+  }
+
+  return responseItemRows;
+}
+
+function findResponseRowIndex(
+  responseRows: SheetRowObject[],
+  responseId: string,
+  formId: string
+) {
+  return responseRows.findIndex(
+    (row) => row.id === responseId && row.form_id === formId
+  );
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
+  if (req.method !== "POST" && req.method !== "PUT") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   try {
-    const body = req.body as SubmitRequestBody;
+    const body = normalizeBody(req.body as SubmitRequestBody);
 
-    if (!body?.formId || !Array.isArray(body.answers)) {
+    if (!body.formId || !Array.isArray(body.answers)) {
       return res.status(400).json({ ok: false, error: "Invalid payload" });
+    }
+
+    const isEdit =
+      req.method === "PUT" || body.mode === "edit" || Boolean(body.responseId);
+
+    if (isEdit && !body.responseId) {
+      return res.status(400).json({
+        ok: false,
+        error: "responseId é obrigatório para editar uma resposta."
+      });
     }
 
     assertEnv();
@@ -188,15 +392,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         readTab(sheets, TABS.responseItems)
       ]);
 
-    await Promise.all([
-      ensureHeaderIfEmpty(sheets, TABS.responses, HEADERS.responses, responsesRaw),
-      ensureHeaderIfEmpty(
-        sheets,
-        TABS.responseItems,
-        HEADERS.responseItems,
-        responseItemsRaw
-      )
-    ]);
+    const ensuredResponsesRaw = await ensureHeaderIfEmpty(
+      sheets,
+      TABS.responses,
+      HEADERS.responses,
+      responsesRaw
+    );
+
+    const ensuredResponseItemsRaw = await ensureHeaderIfEmpty(
+      sheets,
+      TABS.responseItems,
+      HEADERS.responseItems,
+      responseItemsRaw
+    );
 
     const questionRows = questionsRaw.slice(1).map((row) =>
       rowToObject(HEADERS.questions, row)
@@ -206,10 +414,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       rowToObject(HEADERS.options, row)
     );
 
+    const responseRows = ensuredResponsesRaw.slice(1).map((row) =>
+      rowToObject(HEADERS.responses, row)
+    );
+
+    const responseItemRows = ensuredResponseItemsRaw.slice(1).map((row) =>
+      rowToObject(HEADERS.responseItems, row)
+    );
+
     const formQuestions = questionRows.filter((q) => q.form_id === body.formId);
 
     const questionsById = new Map(formQuestions.map((q) => [q.id, q]));
-    const optionsByQuestionId = new Map<string, Record<string, string>[]>();
+    const optionsByQuestionId = new Map<string, SheetRowObject[]>();
 
     for (const opt of optionRows) {
       if (!optionsByQuestionId.has(opt.question_id)) {
@@ -218,129 +434,110 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       optionsByQuestionId.get(opt.question_id)!.push(opt);
     }
 
-    const responseId = uuid();
-    const submittedAt = new Date().toISOString();
+    if (!isEdit) {
+      const responseId = uuid();
+      const submittedAt = new Date().toISOString();
 
-    const responseRow = [
-      responseId,
-      body.formId,
-      body.formTitle ?? "",
-      submittedAt,
-      body.respondentId ?? "",
-      body.respondentName ?? "",
-      body.respondentEmail ?? "",
-      "submitted",
-      body.source ?? "web"
-    ];
-
-    const responseItemRows: string[][] = [];
-
-    for (const answer of body.answers) {
-      const question = questionsById.get(answer.questionId);
-      if (!question) continue;
-
-      const questionType = question.type;
-      const questionOptions = optionsByQuestionId.get(question.id) ?? [];
-      const sortOrder = String(question.sort_order ?? "");
-
-      if (questionType === "checkbox") {
-        const selectedIds = Array.isArray(answer.value) ? answer.value : [];
-
-        for (const selectedId of selectedIds) {
-          const selectedOption = questionOptions.find((opt) => opt.id === selectedId);
-
-          responseItemRows.push([
-            uuid(),
-            responseId,
-            body.formId,
-            question.section_id ?? "",
-            question.id,
-            question.label ?? "",
-            questionType,
-            selectedOption?.id ?? "",
-            selectedOption?.label ?? "",
-            "",
-            "",
-            "",
-            sortOrder
-          ]);
-        }
-
-        continue;
-      }
-
-      if (questionType === "multipleChoice") {
-        const selectedId = typeof answer.value === "string" ? answer.value : "";
-        const selectedOption = questionOptions.find((opt) => opt.id === selectedId);
-
-        responseItemRows.push([
-          uuid(),
-          responseId,
-          body.formId,
-          question.section_id ?? "",
-          question.id,
-          question.label ?? "",
-          questionType,
-          selectedOption?.id ?? "",
-          selectedOption?.label ?? "",
-          "",
-          "",
-          "",
-          sortOrder
-        ]);
-
-        continue;
-      }
-
-      if (questionType === "date") {
-        const dateValue = typeof answer.value === "string" ? answer.value : "";
-
-        responseItemRows.push([
-          uuid(),
-          responseId,
-          body.formId,
-          question.section_id ?? "",
-          question.id,
-          question.label ?? "",
-          questionType,
-          "",
-          "",
-          "",
-          dateValue,
-          "",
-          sortOrder
-        ]);
-
-        continue;
-      }
-
-      const textValue = typeof answer.value === "string" ? answer.value : "";
-
-      responseItemRows.push([
-        uuid(),
+      const responseRow = [
         responseId,
         body.formId,
-        question.section_id ?? "",
-        question.id,
-        question.label ?? "",
-        questionType,
-        "",
-        "",
-        textValue,
-        "",
-        "",
-        sortOrder
+        body.formTitle,
+        submittedAt,
+        body.respondentId,
+        body.respondentName,
+        body.respondentEmail,
+        "submitted",
+        body.source
+      ];
+
+      const newResponseItemRows = buildResponseItemRows({
+        formId: body.formId,
+        responseId,
+        answers: body.answers,
+        questionsById,
+        optionsByQuestionId
+      });
+
+      await Promise.all([
+        appendRows(sheets, TABS.responses, [responseRow]),
+        appendRows(sheets, TABS.responseItems, newResponseItemRows)
       ]);
+
+      return res.status(200).json({
+        ok: true,
+        mode: "create",
+        responseId
+      });
     }
 
+    const existingIndex = findResponseRowIndex(
+      responseRows,
+      body.responseId,
+      body.formId
+    );
+
+    if (existingIndex < 0) {
+      return res.status(404).json({
+        ok: false,
+        error: "Resposta não encontrada para edição."
+      });
+    }
+
+    const existingResponse = responseRows[existingIndex];
+    const updatedSubmittedAt = new Date().toISOString();
+
+    const updatedResponseRow: SheetRowObject = {
+      ...existingResponse,
+      id: body.responseId,
+      form_id: body.formId,
+      form_title: body.formTitle || existingResponse.form_title || "",
+      submitted_at: updatedSubmittedAt,
+      respondent_id: body.respondentId || existingResponse.respondent_id || "",
+      respondent_name:
+        body.respondentName || existingResponse.respondent_name || "",
+      respondent_email:
+        body.respondentEmail || existingResponse.respondent_email || "",
+      status: "submitted",
+      source: body.source || existingResponse.source || "web"
+    };
+
+    const nextResponsesObjects = [...responseRows];
+    nextResponsesObjects[existingIndex] = updatedResponseRow;
+
+    const filteredResponseItems = responseItemRows.filter(
+      (item) => item.response_id !== body.responseId
+    );
+
+    const rebuiltResponseItemRows = buildResponseItemRows({
+      formId: body.formId,
+      responseId: body.responseId,
+      answers: body.answers,
+      questionsById,
+      optionsByQuestionId
+    });
+
+    const finalResponsesSheet = [
+      Array.from(HEADERS.responses),
+      ...nextResponsesObjects.map((row) => objectToRow(HEADERS.responses, row))
+    ];
+
+    const finalResponseItemsSheet = [
+      Array.from(HEADERS.responseItems),
+      ...filteredResponseItems.map((row) =>
+        objectToRow(HEADERS.responseItems, row)
+      ),
+      ...rebuiltResponseItemRows
+    ];
+
     await Promise.all([
-      appendRows(sheets, TABS.responses, [responseRow]),
-      appendRows(sheets, TABS.responseItems, responseItemRows)
+      replaceTabRows(sheets, TABS.responses, finalResponsesSheet),
+      replaceTabRows(sheets, TABS.responseItems, finalResponseItemsSheet)
     ]);
 
     return res.status(200).json({
       ok: true,
-      responseId
+      mode: "edit",
+      responseId: body.responseId
     });
   } catch (e: any) {
     console.error("submit.ts error:", e);

@@ -6,12 +6,15 @@ import {
   FileText,
   FloppyDisk,
   FolderOpen,
-  PaperPlaneTilt
+  PaperPlaneTilt,
+  ListBullets,
+  FilePdf
 } from "phosphor-react";
 
 import { useAuth } from "../../auth/AuthContext";
 import FormPreview from "./components/FormPreview";
 import FormResponsePage from "./components/FormResponsePage";
+import FormResponsePrintPage from "./components/FormResponsePrintPage";
 import { useFormBuilder, STORAGE_KEY } from "./useFormBuilder";
 import type { Mode, QuestionType } from "./types";
 
@@ -34,6 +37,12 @@ type ListedForm = {
   title: string;
   status?: string;
   updated_at?: string;
+};
+
+type ListedResponse = {
+  id: string;
+  user_name: string;
+  submitted_at?: string;
 };
 
 function formatDate(value?: string) {
@@ -66,6 +75,14 @@ async function parseJsonResponse(response: Response) {
   return data;
 }
 
+function sortResponsesByDateDesc(list: ListedResponse[]) {
+  return [...list].sort((a, b) => {
+    const dateA = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+    const dateB = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+    return dateB - dateA;
+  });
+}
+
 export default function FormBuilderPage() {
   const [params, setParams] = useSearchParams();
   const { user, authHeader } = useAuth();
@@ -81,12 +98,28 @@ export default function FormBuilderPage() {
   const [isLoadingForm, setIsLoadingForm] = useState(false);
   const [loadFormError, setLoadFormError] = useState("");
 
+  const [expandedResponsesFormId, setExpandedResponsesFormId] = useState<
+    string | null
+  >(null);
+  const [loadingResponsesFormId, setLoadingResponsesFormId] = useState<
+    string | null
+  >(null);
+  const [responsesByForm, setResponsesByForm] = useState<
+    Record<string, ListedResponse[]>
+  >({});
+  const [responsesErrorByForm, setResponsesErrorByForm] = useState<
+    Record<string, string>
+  >({});
+
   const isAdmin = user?.role === "admin";
 
   const isNew = params.get("new") === "1";
   const formId = params.get("id");
 
-  const urlMode = (params.get("mode") as Mode | null) ?? "builder";
+  const rawMode = params.get("mode");
+  const isPrintResponse = rawMode === "print-response";
+  const urlMode = ((rawMode as Mode | null) ?? "builder");
+
   const isPreview = urlMode === "preview";
   const isRespond = urlMode === "respond";
 
@@ -107,6 +140,11 @@ export default function FormBuilderPage() {
       return;
     }
 
+    if (isPrintResponse) {
+      document.title = "Imprimir resposta";
+      return;
+    }
+
     if (isRespond) {
       document.title = "Responder formulário";
       return;
@@ -123,10 +161,10 @@ export default function FormBuilderPage() {
     }
 
     document.title = "Editar formulário";
-  }, [shouldShowList, isRespond, isPreview, isNew]);
+  }, [shouldShowList, isPrintResponse, isRespond, isPreview, isNew]);
 
   useEffect(() => {
-    if (shouldShowList) return;
+    if (shouldShowList || isPrintResponse) return;
 
     const safeMode: Mode =
       isRespond || isPreview || isAdmin ? urlMode : "respond";
@@ -136,7 +174,7 @@ export default function FormBuilderPage() {
     if (safeMode === "preview" || safeMode === "respond") {
       actions.setActiveSection(null);
     }
-  }, [urlMode, shouldShowList, actions, isRespond, isPreview, isAdmin]);
+  }, [urlMode, shouldShowList, isPrintResponse, actions, isRespond, isPreview, isAdmin]);
 
   useEffect(() => {
     if (!isNew) return;
@@ -229,6 +267,8 @@ export default function FormBuilderPage() {
     updateParams((p) => {
       p.set("mode", mode);
       p.delete("new");
+      p.delete("responseId");
+      p.delete("editResponse");
     });
   };
 
@@ -240,6 +280,8 @@ export default function FormBuilderPage() {
         p.set("new", "1");
         p.set("mode", "builder");
         p.delete("id");
+        p.delete("responseId");
+        p.delete("editResponse");
       },
       true
     );
@@ -251,6 +293,8 @@ export default function FormBuilderPage() {
         p.set("id", id);
         p.set("mode", "respond");
         p.delete("new");
+        p.delete("responseId");
+        p.delete("editResponse");
       },
       true
     );
@@ -264,6 +308,8 @@ export default function FormBuilderPage() {
         p.set("id", id);
         p.set("mode", "builder");
         p.delete("new");
+        p.delete("responseId");
+        p.delete("editResponse");
       },
       true
     );
@@ -275,13 +321,15 @@ export default function FormBuilderPage() {
         p.delete("id");
         p.delete("new");
         p.delete("mode");
+        p.delete("responseId");
+        p.delete("editResponse");
       },
       true
     );
   };
 
   const handleSave = async () => {
-    if (isPreview || isRespond || !isAdmin) return;
+    if (isPreview || isRespond || isPrintResponse || !isAdmin) return;
 
     setIsSaving(true);
     setSaveMessage("");
@@ -321,6 +369,90 @@ export default function FormBuilderPage() {
     }
   };
 
+  const handleToggleResponses = async (targetFormId: string) => {
+    if (expandedResponsesFormId === targetFormId) {
+      setExpandedResponsesFormId(null);
+      return;
+    }
+
+    setExpandedResponsesFormId(targetFormId);
+
+    if (responsesByForm[targetFormId]) {
+      return;
+    }
+
+    setLoadingResponsesFormId(targetFormId);
+    setResponsesErrorByForm((prev) => ({
+      ...prev,
+      [targetFormId]: ""
+    }));
+
+    try {
+      const response = await fetch(
+        `/api/forms/responses/list?formId=${encodeURIComponent(targetFormId)}`,
+        {
+          headers: {
+            ...authHeader()
+          }
+        }
+      );
+
+      const data = await parseJsonResponse(response);
+      const rawResponses = Array.isArray(data.responses) ? data.responses : [];
+      const sortedResponses = sortResponsesByDateDesc(rawResponses);
+
+      setResponsesByForm((prev) => ({
+        ...prev,
+        [targetFormId]: sortedResponses
+      }));
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro ao carregar respostas.";
+
+      setResponsesErrorByForm((prev) => ({
+        ...prev,
+        [targetFormId]: message
+      }));
+
+      setResponsesByForm((prev) => ({
+        ...prev,
+        [targetFormId]: []
+      }));
+    } finally {
+      setLoadingResponsesFormId((current) =>
+        current === targetFormId ? null : current
+      );
+    }
+  };
+
+  const handleEditResponse = (targetFormId: string, responseId: string) => {
+    updateParams(
+      (p) => {
+        p.set("id", targetFormId);
+        p.set("mode", "respond");
+        p.set("responseId", responseId);
+        p.set("editResponse", "1");
+        p.delete("new");
+      },
+      true
+    );
+  };
+
+  const handleOpenResponsePdf = (targetFormId: string, responseId: string) => {
+    updateParams(
+      (p) => {
+        p.set("id", targetFormId);
+        p.set("mode", "print-response");
+        p.set("responseId", responseId);
+        p.delete("new");
+        p.delete("editResponse");
+      },
+      true
+    );
+  };
+
   const activeSectionId = state.activeSectionId;
 
   const handleAddQuestion = (type: QuestionType) => {
@@ -333,10 +465,18 @@ export default function FormBuilderPage() {
       isAdmin &&
       !shouldShowList &&
       !isRespond &&
+      !isPrintResponse &&
       state.mode === "builder" &&
       !!state.activeSectionId
     );
-  }, [isAdmin, shouldShowList, isRespond, state.mode, state.activeSectionId]);
+  }, [
+    isAdmin,
+    shouldShowList,
+    isRespond,
+    isPrintResponse,
+    state.mode,
+    state.activeSectionId
+  ]);
 
   if (shouldShowList) {
     return (
@@ -355,7 +495,8 @@ export default function FormBuilderPage() {
               </div>
 
               <Subtle>
-                Escolha um formulário para responder ou editar.
+                Escolha um formulário para responder, editar ou consultar as
+                respostas.
               </Subtle>
             </div>
 
@@ -425,110 +566,291 @@ export default function FormBuilderPage() {
                 </div>
               </div>
             ) : (
-              forms.map((form) => (
-                <div
-                  key={form.id}
-                  style={{
-                    width: "100%",
-                    background: "#fff",
-                    borderRadius: 16,
-                    padding: 18,
-                    boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 16,
-                    flexWrap: "wrap"
-                  }}
-                >
+              forms.map((form) => {
+                const isExpanded = expandedResponsesFormId === form.id;
+                const isLoadingResponses = loadingResponsesFormId === form.id;
+                const responses = responsesByForm[form.id] ?? [];
+                const responsesError = responsesErrorByForm[form.id] ?? "";
+
+                return (
                   <div
+                    key={form.id}
                     style={{
+                      width: "100%",
                       display: "flex",
-                      gap: 14,
-                      alignItems: "center",
-                      flex: 1,
-                      minWidth: 220
+                      flexDirection: "column",
+                      gap: 12
                     }}
                   >
                     <div
                       style={{
-                        width: 42,
-                        height: 42,
-                        borderRadius: 12,
-                        background: "rgba(103,58,183,0.12)",
-                        display: "grid",
-                        placeItems: "center",
-                        color: "#673ab7"
+                        width: "100%",
+                        background: "#fff",
+                        borderRadius: 16,
+                        padding: 18,
+                        boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 16,
+                        flexWrap: "wrap"
                       }}
                     >
-                      <FolderOpen size={20} weight="bold" />
-                    </div>
-
-                    <div>
                       <div
                         style={{
-                          fontSize: 16,
-                          fontWeight: 700,
-                          color: "#202124"
+                          display: "flex",
+                          gap: 14,
+                          alignItems: "center",
+                          flex: 1,
+                          minWidth: 220
                         }}
                       >
-                        {form.title || "Formulário sem título"}
+                        <div
+                          style={{
+                            width: 42,
+                            height: 42,
+                            borderRadius: 12,
+                            background: "rgba(103,58,183,0.12)",
+                            display: "grid",
+                            placeItems: "center",
+                            color: "#673ab7"
+                          }}
+                        >
+                          <FolderOpen size={20} weight="bold" />
+                        </div>
+
+                        <div>
+                          <div
+                            style={{
+                              fontSize: 16,
+                              fontWeight: 700,
+                              color: "#202124"
+                            }}
+                          >
+                            {form.title || "Formulário sem título"}
+                          </div>
+
+                          <div
+                            style={{
+                              marginTop: 4,
+                              fontSize: 13,
+                              color: "rgba(0,0,0,0.6)"
+                            }}
+                          >
+                            Atualizado em {formatDate(form.updated_at)}
+                            {form.status ? ` • ${form.status}` : ""}
+                          </div>
+                        </div>
                       </div>
 
                       <div
                         style={{
-                          marginTop: 4,
-                          fontSize: 13,
-                          color: "rgba(0,0,0,0.6)"
+                          display: "flex",
+                          gap: 10,
+                          flexWrap: "wrap"
                         }}
                       >
-                        Atualizado em {formatDate(form.updated_at)}
-                        {form.status ? ` • ${form.status}` : ""}
+                        <button
+                          onClick={() => handleRespondForm(form.id)}
+                          style={{
+                            border: "none",
+                            borderRadius: 10,
+                            padding: "10px 14px",
+                            background: "#673ab7",
+                            color: "#fff",
+                            fontWeight: 700,
+                            cursor: "pointer"
+                          }}
+                        >
+                          Responder
+                        </button>
+
+                        <button
+                          onClick={() => handleToggleResponses(form.id)}
+                          style={{
+                            border: "1px solid rgba(103,58,183,0.25)",
+                            borderRadius: 10,
+                            padding: "10px 14px",
+                            background: isExpanded
+                              ? "rgba(103,58,183,0.08)"
+                              : "#fff",
+                            color: "#673ab7",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8
+                          }}
+                        >
+                          <ListBullets size={18} weight="bold" />
+                          Respostas
+                        </button>
+
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleEditForm(form.id)}
+                            style={{
+                              border: "1px solid rgba(103,58,183,0.25)",
+                              borderRadius: 10,
+                              padding: "10px 14px",
+                              background: "#fff",
+                              color: "#673ab7",
+                              fontWeight: 700,
+                              cursor: "pointer"
+                            }}
+                          >
+                            Editar
+                          </button>
+                        )}
                       </div>
                     </div>
-                  </div>
 
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 10,
-                      flexWrap: "wrap"
-                    }}
-                  >
-                    <button
-                      onClick={() => handleRespondForm(form.id)}
-                      style={{
-                        border: "none",
-                        borderRadius: 10,
-                        padding: "10px 14px",
-                        background: "#673ab7",
-                        color: "#fff",
-                        fontWeight: 700,
-                        cursor: "pointer"
-                      }}
-                    >
-                      Responder
-                    </button>
-
-                    {isAdmin && (
-                      <button
-                        onClick={() => handleEditForm(form.id)}
+                    {isExpanded && (
+                      <div
                         style={{
-                          border: "1px solid rgba(103,58,183,0.25)",
-                          borderRadius: 10,
-                          padding: "10px 14px",
                           background: "#fff",
-                          color: "#673ab7",
-                          fontWeight: 700,
-                          cursor: "pointer"
+                          borderRadius: 16,
+                          padding: 18,
+                          boxShadow: "0 10px 30px rgba(0,0,0,0.08)"
                         }}
                       >
-                        Editar
-                      </button>
+                        <div
+                          style={{
+                            fontSize: 15,
+                            fontWeight: 700,
+                            color: "#202124",
+                            marginBottom: 12
+                          }}
+                        >
+                          Respostas do formulário
+                        </div>
+
+                        {isLoadingResponses ? (
+                          <div style={{ color: "rgba(0,0,0,0.72)" }}>
+                            Carregando respostas...
+                          </div>
+                        ) : responsesError ? (
+                          <div
+                            style={{
+                              color: "#d93025",
+                              fontWeight: 500
+                            }}
+                          >
+                            {responsesError}
+                          </div>
+                        ) : responses.length === 0 ? (
+                          <div style={{ color: "rgba(0,0,0,0.6)" }}>
+                            Nenhuma resposta encontrada.
+                          </div>
+                        ) : (
+                          <div
+                            style={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 10
+                            }}
+                          >
+                            {responses.map((response) => (
+                              <div
+                                key={response.id}
+                                style={{
+                                  border: "1px solid rgba(0,0,0,0.08)",
+                                  borderRadius: 12,
+                                  padding: 14,
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "space-between",
+                                  gap: 14,
+                                  flexWrap: "wrap"
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 4,
+                                    minWidth: 220,
+                                    flex: 1
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      fontSize: 15,
+                                      fontWeight: 700,
+                                      color: "#202124"
+                                    }}
+                                  >
+                                    {response.user_name || "Usuário sem nome"}
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      fontSize: 13,
+                                      color: "rgba(0,0,0,0.6)"
+                                    }}
+                                  >
+                                    Respondido em {formatDate(response.submitted_at)}
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 8,
+                                    flexWrap: "wrap"
+                                  }}
+                                >
+                                  <button
+                                    onClick={() =>
+                                      handleEditResponse(form.id, response.id)
+                                    }
+                                    style={{
+                                      border: "1px solid rgba(103,58,183,0.25)",
+                                      borderRadius: 10,
+                                      padding: "9px 12px",
+                                      background: "#fff",
+                                      color: "#673ab7",
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 8
+                                    }}
+                                  >
+                                    <PencilSimple size={16} weight="bold" />
+                                    Editar
+                                  </button>
+
+                                  <button
+                                    onClick={() =>
+                                      handleOpenResponsePdf(form.id, response.id)
+                                    }
+                                    style={{
+                                      border: "1px solid rgba(0,0,0,0.12)",
+                                      borderRadius: 10,
+                                      padding: "9px 12px",
+                                      background: "#fff",
+                                      color: "#202124",
+                                      fontWeight: 700,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 8
+                                    }}
+                                  >
+                                    <FilePdf size={16} weight="bold" />
+                                    PDF
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </Body>
         </Center>
@@ -537,15 +859,19 @@ export default function FormBuilderPage() {
   }
 
   return (
-    <Page data-preview={isPreview || isRespond ? "true" : "false"}>
-      <Center data-preview={isPreview || isRespond ? "true" : "false"}>
+    <Page data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}>
+      <Center
+        data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}
+      >
         <Header>
           <div style={{ flex: 1, minWidth: 260 }}>
             <TitleInput
               placeholder="Nome do formulário"
               value={state.form.title}
               onChange={(e) => actions.setTitle(e.target.value)}
-              disabled={!isAdmin || isPreview || isRespond || isLoadingForm}
+              disabled={
+                !isAdmin || isPreview || isRespond || isPrintResponse || isLoadingForm
+              }
             />
 
             <Subtle>
@@ -553,6 +879,8 @@ export default function FormBuilderPage() {
                 ? "Carregando formulário..."
                 : loadFormError
                 ? loadFormError
+                : isPrintResponse
+                ? "Visualização pronta para impressão ou salvamento em PDF."
                 : isRespond
                 ? "Preencha o formulário e envie suas respostas."
                 : isPreview
@@ -563,7 +891,7 @@ export default function FormBuilderPage() {
           </div>
 
           <Actions>
-            {!isPreview && !isRespond && isAdmin && (
+            {!isPreview && !isRespond && !isPrintResponse && isAdmin && (
               <IconBtn
                 title={isSaving ? "Salvando..." : "Salvar"}
                 onClick={handleSave}
@@ -577,7 +905,7 @@ export default function FormBuilderPage() {
               <FolderOpen size={20} weight="bold" />
             </IconBtn>
 
-            {isAdmin && !isRespond && (
+            {isAdmin && !isRespond && !isPrintResponse && (
               <>
                 <IconBtn
                   title="Editar"
@@ -613,7 +941,7 @@ export default function FormBuilderPage() {
           </Actions>
         </Header>
 
-        <Body data-preview={isPreview || isRespond ? "true" : "false"}>
+        <Body data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}>
           {isLoadingForm ? (
             <div
               style={{
@@ -638,6 +966,8 @@ export default function FormBuilderPage() {
             >
               {loadFormError}
             </div>
+          ) : isPrintResponse ? (
+            <FormResponsePrintPage form={state.form} />
           ) : isRespond ? (
             <FormResponsePage form={state.form} />
           ) : isPreview ? (
