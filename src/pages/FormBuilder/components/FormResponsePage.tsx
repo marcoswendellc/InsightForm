@@ -105,9 +105,9 @@ export default function FormResponsePage({ form }: Props) {
   }, [form.id]);
 
   useEffect(() => {
-    if (!isEditResponse) return;
-    if (!responseId) return;
-    if (!currentFormId) return;
+    if (!currentFormId || !isEditResponse || !responseId) {
+      return;
+    }
 
     let cancelled = false;
 
@@ -159,7 +159,7 @@ export default function FormResponsePage({ form }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isEditResponse, responseId, currentFormId, authHeader]);
+  }, [currentFormId, isEditResponse, responseId, authHeader]);
 
   const handleAnswerChange = (question: Question, value: string | string[]) => {
     setAnswers((prev) => ({
