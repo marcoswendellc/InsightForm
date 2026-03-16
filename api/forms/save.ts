@@ -47,6 +47,8 @@ type SaveRequestBody =
       form?: FormPayload;
     };
 
+type SheetRowObject = Record<string, string>;
+
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
@@ -94,7 +96,9 @@ const HEADERS = {
 
 function assertEnv() {
   if (!SHEET_ID) throw new Error("Missing GOOGLE_SHEET_ID");
-  if (!SERVICE_ACCOUNT_EMAIL) throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  if (!SERVICE_ACCOUNT_EMAIL) {
+    throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  }
   if (!PRIVATE_KEY) throw new Error("Missing GOOGLE_PRIVATE_KEY");
 }
 
@@ -107,6 +111,10 @@ function normalizeBody(body: SaveRequestBody): FormPayload {
   }
 
   return body as FormPayload;
+}
+
+function normalizeString(value?: string) {
+  return value?.trim() ?? "";
 }
 
 function splitGoTo(goTo?: GoTo): { kind: string; sectionId: string } {
@@ -124,10 +132,19 @@ function rowToObject(
   row: unknown[]
 ): Record<string, string> {
   const obj: Record<string, string> = {};
+
   headers.forEach((header, index) => {
     obj[header] = String(row[index] ?? "");
   });
+
   return obj;
+}
+
+function objectToRow(
+  headers: readonly string[],
+  row: SheetRowObject
+): string[] {
+  return headers.map((header) => row[header] ?? "");
 }
 
 async function getSheetsClient() {
@@ -183,6 +200,13 @@ async function rewriteTab(
   tabName: string,
   rows: string[][]
 ) {
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: SHEET_ID!,
+    range: `${tabName}!A:Z`
+  });
+
+  if (!rows.length) return;
+
   await sheets.spreadsheets.values.update({
     spreadsheetId: SHEET_ID!,
     range: `${tabName}!A1`,
@@ -191,6 +215,82 @@ async function rewriteTab(
       values: rows
     }
   });
+}
+
+function buildSectionRows(formId: string, sections: SectionPayload[]) {
+  const rows: string[][] = [];
+
+  for (let si = 0; si < sections.length; si++) {
+    const section = sections[si];
+    const sectionId = normalizeString(section.id) || uuid();
+    const goTo = splitGoTo(section.goTo);
+
+    rows.push([
+      sectionId,
+      formId,
+      normalizeString(section.title),
+      normalizeString(section.description),
+      String(si),
+      goTo.kind,
+      goTo.sectionId
+    ]);
+  }
+
+  return rows;
+}
+
+function buildQuestionRowsAndOptionRows(formId: string, sections: SectionPayload[]) {
+  const questionRows: string[][] = [];
+  const optionRows: string[][] = [];
+
+  for (let si = 0; si < sections.length; si++) {
+    const section = sections[si];
+    const sectionId = normalizeString(section.id) || uuid();
+    const questions = Array.isArray(section.questions) ? section.questions : [];
+
+    for (let qi = 0; qi < questions.length; qi++) {
+      const question = questions[qi];
+      const questionId = normalizeString(question.id) || uuid();
+
+      questionRows.push([
+        questionId,
+        formId,
+        sectionId,
+        normalizeString(question.type),
+        normalizeString(question.label),
+        question.required ? "true" : "false",
+        question.jumpEnabled ? "true" : "false",
+        String(qi)
+      ]);
+
+      const needsOptions =
+        question.type === "multipleChoice" || question.type === "checkbox";
+
+      if (!needsOptions) continue;
+
+      const options = Array.isArray(question.options) ? question.options : [];
+
+      for (let oi = 0; oi < options.length; oi++) {
+        const option = options[oi];
+        const optionId = normalizeString(option.id) || uuid();
+        const optionGoTo = splitGoTo(option.goTo);
+
+        optionRows.push([
+          optionId,
+          formId,
+          sectionId,
+          questionId,
+          normalizeString(option.label),
+          option.isOther ? "true" : "false",
+          optionGoTo.kind,
+          optionGoTo.sectionId,
+          String(oi)
+        ]);
+      }
+    }
+  }
+
+  return { questionRows, optionRows };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -210,8 +310,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const body = normalizeBody(req.body as SaveRequestBody);
+    const normalizedTitle = normalizeString(body.title);
+    const sections = Array.isArray(body.sections) ? body.sections : [];
 
-    if (!body?.title || !Array.isArray(body.sections)) {
+    if (!normalizedTitle || !Array.isArray(body.sections)) {
       return res.status(400).json({ ok: false, error: "Invalid payload" });
     }
 
@@ -250,115 +352,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       optionsRaw
     );
 
-    const existingFormObjects = formsRows.slice(1).map((row) =>
+    const existingForms = formsRows.slice(1).map((row) =>
       rowToObject(HEADERS.forms, row)
     );
-    const existingSectionObjects = sectionsRows.slice(1).map((row) =>
+    const existingSections = sectionsRows.slice(1).map((row) =>
       rowToObject(HEADERS.sections, row)
     );
-    const existingQuestionObjects = questionsRows.slice(1).map((row) =>
+    const existingQuestions = questionsRows.slice(1).map((row) =>
       rowToObject(HEADERS.questions, row)
     );
-    const existingOptionObjects = optionsRows.slice(1).map((row) =>
+    const existingOptions = optionsRows.slice(1).map((row) =>
       rowToObject(HEADERS.options, row)
     );
 
-    const formId = body.id ?? uuid();
+    const formId = normalizeString(body.id) || uuid();
     const now = new Date().toISOString();
 
-    const previousForm = existingFormObjects.find((row) => row.id === formId);
+    const previousForm = existingForms.find((row) => row.id === formId);
     const createdAt = previousForm?.created_at || now;
     const publishedAt = previousForm?.published_at || "";
     const status = previousForm?.status || "draft";
 
-    const keptForms = existingFormObjects.filter((row) => row.id !== formId);
-    const keptSections = existingSectionObjects.filter((row) => row.form_id !== formId);
-    const keptQuestions = existingQuestionObjects.filter((row) => row.form_id !== formId);
-    const keptOptions = existingOptionObjects.filter((row) => row.form_id !== formId);
+    const keptForms = existingForms.filter((row) => row.id !== formId);
+    const keptSections = existingSections.filter((row) => row.form_id !== formId);
+    const keptQuestions = existingQuestions.filter((row) => row.form_id !== formId);
+    const keptOptions = existingOptions.filter((row) => row.form_id !== formId);
 
-    const newSectionRows: string[][] = [];
-    const newQuestionRows: string[][] = [];
-    const newOptionRows: string[][] = [];
+    const sectionRowsBuilt = buildSectionRows(formId, sections);
+    const { questionRows, optionRows } = buildQuestionRowsAndOptionRows(
+      formId,
+      sections
+    );
 
-    for (let si = 0; si < body.sections.length; si++) {
-      const section = body.sections[si];
-      const sectionId = section.id ?? uuid();
-      const sectionGoTo = splitGoTo(section.goTo);
-
-      newSectionRows.push([
-        sectionId,
-        formId,
-        section.title ?? "",
-        section.description ?? "",
-        String(si),
-        sectionGoTo.kind,
-        sectionGoTo.sectionId
-      ]);
-
-      for (let qi = 0; qi < section.questions.length; qi++) {
-        const question = section.questions[qi];
-        const questionId = question.id ?? uuid();
-
-        newQuestionRows.push([
-          questionId,
-          formId,
-          sectionId,
-          question.type ?? "",
-          question.label ?? "",
-          question.required ? "true" : "false",
-          question.jumpEnabled ? "true" : "false",
-          String(qi)
-        ]);
-
-        const needsOptions =
-          question.type === "multipleChoice" || question.type === "checkbox";
-
-        if (!needsOptions) continue;
-
-        const options = question.options ?? [];
-
-        for (let oi = 0; oi < options.length; oi++) {
-          const option = options[oi];
-          const optionId = option.id ?? uuid();
-          const optionGoTo = splitGoTo(option.goTo);
-
-          newOptionRows.push([
-            optionId,
-            formId,
-            sectionId,
-            questionId,
-            option.label ?? "",
-            option.isOther ? "true" : "false",
-            optionGoTo.kind,
-            optionGoTo.sectionId,
-            String(oi)
-          ]);
-        }
-      }
-    }
+    const formRowObject: SheetRowObject = {
+      id: formId,
+      title: normalizedTitle,
+      status,
+      created_at: createdAt,
+      updated_at: now,
+      published_at: publishedAt
+    };
 
     const nextFormRows: string[][] = [
       Array.from(HEADERS.forms),
-      ...keptForms.map((row) => HEADERS.forms.map((h) => row[h] ?? "")),
-      [formId, body.title ?? "", status, createdAt, now, publishedAt]
+      ...keptForms.map((row) => objectToRow(HEADERS.forms, row)),
+      objectToRow(HEADERS.forms, formRowObject)
     ];
 
     const nextSectionRows: string[][] = [
       Array.from(HEADERS.sections),
-      ...keptSections.map((row) => HEADERS.sections.map((h) => row[h] ?? "")),
-      ...newSectionRows
+      ...keptSections.map((row) => objectToRow(HEADERS.sections, row)),
+      ...sectionRowsBuilt
     ];
 
     const nextQuestionRows: string[][] = [
       Array.from(HEADERS.questions),
-      ...keptQuestions.map((row) => HEADERS.questions.map((h) => row[h] ?? "")),
-      ...newQuestionRows
+      ...keptQuestions.map((row) => objectToRow(HEADERS.questions, row)),
+      ...questionRows
     ];
 
     const nextOptionRows: string[][] = [
       Array.from(HEADERS.options),
-      ...keptOptions.map((row) => HEADERS.options.map((h) => row[h] ?? "")),
-      ...newOptionRows
+      ...keptOptions.map((row) => objectToRow(HEADERS.options, row)),
+      ...optionRows
     ];
 
     await Promise.all([
@@ -368,7 +424,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       rewriteTab(sheets, TABS.options, nextOptionRows)
     ]);
 
-    return res.status(200).json({ ok: true, id: formId });
+    return res.status(200).json({
+      ok: true,
+      id: formId
+    });
   } catch (e: any) {
     console.error("save.ts error:", e);
 
