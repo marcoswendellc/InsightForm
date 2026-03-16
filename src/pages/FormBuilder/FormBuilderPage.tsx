@@ -43,6 +43,8 @@ type ListedResponse = {
   id: string;
   user_name: string;
   submitted_at?: string;
+  can_edit?: boolean;
+  can_print?: boolean;
 };
 
 function formatDate(value?: string) {
@@ -114,7 +116,7 @@ export default function FormBuilderPage() {
   const isAdmin = user?.role === "admin";
 
   const isNew = params.get("new") === "1";
-  const formId = params.get("id");
+  const formId = params.get("id")?.trim() || "";
 
   const rawMode = params.get("mode");
   const isPrintResponse = rawMode === "print-response";
@@ -174,11 +176,18 @@ export default function FormBuilderPage() {
     if (safeMode === "preview" || safeMode === "respond") {
       actions.setActiveSection(null);
     }
-  }, [urlMode, shouldShowList, isPrintResponse, actions, isRespond, isPreview, isAdmin]);
+  }, [
+    urlMode,
+    shouldShowList,
+    isPrintResponse,
+    actions,
+    isRespond,
+    isPreview,
+    isAdmin
+  ]);
 
   useEffect(() => {
-    if (!isNew) return;
-    if (!isAdmin) return;
+    if (!isNew || !isAdmin) return;
 
     actions.reset({ hard: true });
 
@@ -196,8 +205,7 @@ export default function FormBuilderPage() {
   }, [isNew, isAdmin, actions, params]);
 
   useEffect(() => {
-    if (isNew) return;
-    if (!formId) return;
+    if (isNew || !formId) return;
 
     let cancelled = false;
 
@@ -239,7 +247,7 @@ export default function FormBuilderPage() {
       setFormsError("");
 
       try {
-        const response = await fetch("/api/forms/responses/list", {
+        const response = await fetch("/api/forms/list", {
           headers: {
             ...authHeader()
           }
@@ -288,6 +296,8 @@ export default function FormBuilderPage() {
   };
 
   const handleRespondForm = (id: string) => {
+    if (!id?.trim()) return;
+
     updateParams(
       (p) => {
         p.set("id", id);
@@ -301,7 +311,7 @@ export default function FormBuilderPage() {
   };
 
   const handleEditForm = (id: string) => {
-    if (!isAdmin) return;
+    if (!isAdmin || !id?.trim()) return;
 
     updateParams(
       (p) => {
@@ -370,6 +380,11 @@ export default function FormBuilderPage() {
   };
 
   const handleToggleResponses = async (targetFormId: string) => {
+    if (!targetFormId?.trim()) {
+      alert("formId não encontrado para este formulário.");
+      return;
+    }
+
     if (expandedResponsesFormId === targetFormId) {
       setExpandedResponsesFormId(null);
       return;
@@ -427,7 +442,13 @@ export default function FormBuilderPage() {
     }
   };
 
-  const handleEditResponse = (targetFormId: string, responseId: string) => {
+  const handleEditResponse = (
+    targetFormId: string,
+    responseId: string,
+    canEdit = true
+  ) => {
+    if (!targetFormId?.trim() || !responseId?.trim() || !canEdit) return;
+
     updateParams(
       (p) => {
         p.set("id", targetFormId);
@@ -440,7 +461,13 @@ export default function FormBuilderPage() {
     );
   };
 
-  const handleOpenResponsePdf = (targetFormId: string, responseId: string) => {
+  const handleOpenResponsePdf = (
+    targetFormId: string,
+    responseId: string,
+    canPrint = true
+  ) => {
+    if (!targetFormId?.trim() || !responseId?.trim() || !canPrint) return;
+
     updateParams(
       (p) => {
         p.set("id", targetFormId);
@@ -800,47 +827,59 @@ export default function FormBuilderPage() {
                                     flexWrap: "wrap"
                                   }}
                                 >
-                                  <button
-                                    onClick={() =>
-                                      handleEditResponse(form.id, response.id)
-                                    }
-                                    style={{
-                                      border: "1px solid rgba(103,58,183,0.25)",
-                                      borderRadius: 10,
-                                      padding: "9px 12px",
-                                      background: "#fff",
-                                      color: "#673ab7",
-                                      fontWeight: 700,
-                                      cursor: "pointer",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 8
-                                    }}
-                                  >
-                                    <PencilSimple size={16} weight="bold" />
-                                    Editar
-                                  </button>
+                                  {response.can_edit !== false && (
+                                    <button
+                                      onClick={() =>
+                                        handleEditResponse(
+                                          form.id,
+                                          response.id,
+                                          !!response.can_edit
+                                        )
+                                      }
+                                      style={{
+                                        border: "1px solid rgba(103,58,183,0.25)",
+                                        borderRadius: 10,
+                                        padding: "9px 12px",
+                                        background: "#fff",
+                                        color: "#673ab7",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8
+                                      }}
+                                    >
+                                      <PencilSimple size={16} weight="bold" />
+                                      Editar
+                                    </button>
+                                  )}
 
-                                  <button
-                                    onClick={() =>
-                                      handleOpenResponsePdf(form.id, response.id)
-                                    }
-                                    style={{
-                                      border: "1px solid rgba(0,0,0,0.12)",
-                                      borderRadius: 10,
-                                      padding: "9px 12px",
-                                      background: "#fff",
-                                      color: "#202124",
-                                      fontWeight: 700,
-                                      cursor: "pointer",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: 8
-                                    }}
-                                  >
-                                    <FilePdf size={16} weight="bold" />
-                                    PDF
-                                  </button>
+                                  {response.can_print !== false && (
+                                    <button
+                                      onClick={() =>
+                                        handleOpenResponsePdf(
+                                          form.id,
+                                          response.id,
+                                          !!response.can_print
+                                        )
+                                      }
+                                      style={{
+                                        border: "1px solid rgba(0,0,0,0.12)",
+                                        borderRadius: 10,
+                                        padding: "9px 12px",
+                                        background: "#fff",
+                                        color: "#202124",
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8
+                                      }}
+                                    >
+                                      <FilePdf size={16} weight="bold" />
+                                      PDF
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             ))}
@@ -859,7 +898,9 @@ export default function FormBuilderPage() {
   }
 
   return (
-    <Page data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}>
+    <Page
+      data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}
+    >
       <Center
         data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}
       >
@@ -870,7 +911,11 @@ export default function FormBuilderPage() {
               value={state.form.title}
               onChange={(e) => actions.setTitle(e.target.value)}
               disabled={
-                !isAdmin || isPreview || isRespond || isPrintResponse || isLoadingForm
+                !isAdmin ||
+                isPreview ||
+                isRespond ||
+                isPrintResponse ||
+                isLoadingForm
               }
             />
 
@@ -941,7 +986,9 @@ export default function FormBuilderPage() {
           </Actions>
         </Header>
 
-        <Body data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}>
+        <Body
+          data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}
+        >
           {isLoadingForm ? (
             <div
               style={{
