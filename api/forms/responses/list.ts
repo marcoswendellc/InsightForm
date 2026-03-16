@@ -1,20 +1,23 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
-import { getUserFromRequest } from "../_auth.js";
+import { getUserFromRequest } from "../../_auth.js";
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-const TAB_NAME = "forms";
+const TAB_NAME = "responses";
 
 const HEADERS = [
   "id",
-  "title",
+  "form_id",
+  "form_title",
+  "submitted_at",
+  "respondent_id",
+  "respondent_name",
+  "respondent_email",
   "status",
-  "created_at",
-  "updated_at",
-  "published_at"
+  "source"
 ] as const;
 
 function assertEnv() {
@@ -24,6 +27,7 @@ function assertEnv() {
 }
 
 function rowToObject(headers: readonly string[], row: unknown[]) {
+
   const obj: Record<string, string> = {};
 
   headers.forEach((header, index) => {
@@ -31,9 +35,11 @@ function rowToObject(headers: readonly string[], row: unknown[]) {
   });
 
   return obj;
+
 }
 
 async function getSheetsClient() {
+
   const auth = new google.auth.JWT({
     email: SERVICE_ACCOUNT_EMAIL,
     key: PRIVATE_KEY,
@@ -43,27 +49,34 @@ async function getSheetsClient() {
   await auth.authorize();
 
   return google.sheets({ version: "v4", auth });
+
 }
 
 async function readTab(
   sheets: ReturnType<typeof google.sheets>,
   tabName: string
 ) {
+
   const resp = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID!,
     range: `${tabName}!A:Z`
   });
 
   return (resp.data.values ?? []) as string[][];
+
 }
 
-function sortByUpdatedAtDesc(forms: any[]) {
-  return [...forms].sort((a, b) => {
-    const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-    const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+function sortBySubmittedAtDesc(rows: any[]) {
+
+  return [...rows].sort((a, b) => {
+
+    const aTime = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+    const bTime = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
 
     return bTime - aTime;
+
   });
+
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -83,6 +96,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    const formId = String(req.query.formId ?? "").trim();
+
+    if (!formId) {
+      return res.status(400).json({
+        ok: false,
+        error: "formId é obrigatório."
+      });
+    }
+
     assertEnv();
 
     const sheets = await getSheetsClient();
@@ -90,28 +112,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const rows = await readTab(sheets, TAB_NAME);
 
     if (rows.length === 0) {
-      return res.json({ ok: true, forms: [] });
+      return res.json({ ok: true, responses: [] });
     }
 
-    const forms = rows
+    const responses = rows
       .slice(1)
       .map((row) => rowToObject(HEADERS, row))
-      .filter((row) => row.id)
+      .filter((row) => row.id && row.form_id === formId)
       .map((row) => ({
         id: row.id,
-        title: row.title,
-        status: row.status,
-        updated_at: row.updated_at
+        user_name:
+          row.respondent_name ||
+          row.respondent_email ||
+          "Usuário sem identificação",
+        submitted_at: row.submitted_at
       }));
 
     return res.status(200).json({
       ok: true,
-      forms: sortByUpdatedAtDesc(forms)
+      responses: sortBySubmittedAtDesc(responses)
     });
 
   } catch (e: any) {
 
-    console.error("forms/list.ts error:", e);
+    console.error("responses/list.ts error:", e);
 
     return res.status(500).json({
       ok: false,

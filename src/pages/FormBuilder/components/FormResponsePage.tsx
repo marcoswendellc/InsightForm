@@ -1,22 +1,47 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthContext";
-import type { FormDefinition } from "../types";
+import type { FormDefinition, Question } from "../types";
+import SectionPreview from "./SectionPreview";
+import {
+  type AnswersMap,
+  type ErrorsMap,
+  buildSubmitAnswers,
+  getNextSectionIndex,
+  validateSection
+} from "./formFlow";
 
 type Props = {
   form: FormDefinition;
 };
 
-type ResponseData = {
+type ExistingResponsePayload = {
   id: string;
   form_id: string;
-  form_title: string;
-  submitted_at?: string;
-  respondent_id?: string;
-  respondent_name?: string;
-  respondent_email?: string;
-  answers?: Record<string, string | string[]>;
+  answers?:
+    | AnswersMap
+    | Array<{ questionId: string; value: string | string[] }>;
 };
+
+function parseResponseAnswers(
+  input: ExistingResponsePayload["answers"]
+): AnswersMap {
+  if (!input) return {};
+
+  if (Array.isArray(input)) {
+    return input.reduce<AnswersMap>((acc, item) => {
+      if (!item?.questionId) return acc;
+      acc[item.questionId] = item.value ?? "";
+      return acc;
+    }, {});
+  }
+
+  if (typeof input === "object") {
+    return input as AnswersMap;
+  }
+
+  return {};
+}
 
 async function parseJsonResponse(response: Response) {
   const rawText = await response.text();
@@ -36,123 +61,66 @@ async function parseJsonResponse(response: Response) {
   return data;
 }
 
-function formatDateTime(value?: string) {
-  if (!value) return "Sem data";
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleString("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short"
-  });
-}
-
-function formatDateOnly(value?: string) {
-  if (!value) return "—";
-
-  const date = new Date(`${value}T00:00:00`);
-  if (Number.isNaN(date.getTime())) return value;
-
-  return date.toLocaleDateString("pt-BR");
-}
-
-function normalizeAnswerValue(value: string | string[] | undefined) {
-  if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "—";
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    return value;
-  }
-
-  return "—";
-}
-
-function getBooleanLabel(value: string | string[] | undefined) {
-  const raw = Array.isArray(value) ? value[0] ?? "" : value ?? "";
-  const normalized = String(raw).trim().toLowerCase();
-
-  if (["true", "1", "sim", "yes"].includes(normalized)) return "Sim";
-  if (["false", "0", "não", "nao", "no"].includes(normalized)) return "Não";
-
-  return raw || "—";
-}
-
-function getAnswerLabel(params: {
-  questionType: string;
-  value: string | string[] | undefined;
-  options?: Array<{
-    id: string;
-    label: string;
-  }>;
-}) {
-  const { questionType, value, options } = params;
-
-  if (questionType === "multipleChoice") {
-    const selectedId = typeof value === "string" ? value : "";
-    const selected = options?.find((opt) => opt.id === selectedId);
-    return selected?.label || "—";
-  }
-
-  if (questionType === "checkbox") {
-    const ids = Array.isArray(value) ? value : [];
-    if (!ids.length) return "—";
-
-    const labels = ids.map((id) => {
-      const found = options?.find((opt) => opt.id === id);
-      return found?.label || id;
-    });
-
-    return labels.join(", ");
-  }
-
-  if (questionType === "date") {
-    return formatDateOnly(typeof value === "string" ? value : "");
-  }
-
-  if (questionType === "boolean") {
-    return getBooleanLabel(value);
-  }
-
-  return normalizeAnswerValue(value);
-}
-
-export default function FormResponsePrintPage({ form }: Props) {
+export default function FormResponsePage({ form }: Props) {
   const [params] = useSearchParams();
-  const { authHeader } = useAuth();
+  const { user, authHeader } = useAuth();
 
-  const [responseData, setResponseData] = useState<ResponseData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [currentSectionIndex, setCurrentSectionIndex] = useState(0);
+  const [answers, setAnswers] = useState<AnswersMap>({});
+  const [errors, setErrors] = useState<ErrorsMap>({});
+  const [submitted, setSubmitted] = useState(false);
+  const [history, setHistory] = useState<number[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+
+  const [isLoadingExistingResponse, setIsLoadingExistingResponse] =
+    useState(false);
+  const [loadExistingResponseError, setLoadExistingResponseError] =
+    useState("");
 
   const responseId = params.get("responseId")?.trim() || "";
+  const isEditResponse = params.get("editResponse") === "1" && !!responseId;
+
+  const currentFormId = form.id?.trim() || "";
+  const section = form.sections[currentSectionIndex];
+  const canSubmitForm = Boolean(currentFormId);
+
+  const isLast = useMemo(() => {
+    const next = getNextSectionIndex(form, currentSectionIndex, answers);
+    return (
+      next === "submit" ||
+      (typeof next === "number" && next >= form.sections.length)
+    );
+  }, [form, currentSectionIndex, answers]);
 
   useEffect(() => {
-    const currentFormId = form.id?.trim() || "";
-    const currentResponseId = responseId.trim();
+    setCurrentSectionIndex(0);
+    setAnswers({});
+    setErrors({});
+    setSubmitted(false);
+    setHistory([]);
+    setSubmitError("");
+    setLoadExistingResponseError("");
+    setIsLoadingExistingResponse(false);
+  }, [form.id]);
 
-    if (!currentResponseId) {
-      setIsLoading(false);
-      setLoadError("Resposta não informada.");
-      return;
-    }
-
-    if (!currentFormId) {
-      return;
-    }
+  useEffect(() => {
+    if (!isEditResponse) return;
+    if (!responseId) return;
+    if (!currentFormId) return;
 
     let cancelled = false;
 
-    const run = async () => {
-      setIsLoading(true);
-      setLoadError("");
+    const loadExistingResponse = async () => {
+      setIsLoadingExistingResponse(true);
+      setLoadExistingResponseError("");
+      setSubmitError("");
 
       try {
         const response = await fetch(
-          `/api/forms/get?formId=${encodeURIComponent(
+          `/api/forms/responses/get?formId=${encodeURIComponent(
             currentFormId
-          )}&responseId=${encodeURIComponent(currentResponseId)}`,
+          )}&responseId=${encodeURIComponent(responseId)}`,
           {
             headers: {
               ...authHeader()
@@ -164,61 +132,163 @@ export default function FormResponsePrintPage({ form }: Props) {
 
         if (cancelled) return;
 
-        setResponseData(data.response ?? null);
+        const mappedAnswers = parseResponseAnswers(data.response?.answers);
+
+        setAnswers(mappedAnswers);
+        setCurrentSectionIndex(0);
+        setHistory([]);
+        setErrors({});
       } catch (error) {
         if (cancelled) return;
 
         const message =
           error instanceof Error
             ? error.message
-            : "Erro ao carregar resposta para impressão.";
+            : "Erro ao carregar resposta para edição.";
 
-        setLoadError(message);
+        setLoadExistingResponseError(message);
       } finally {
         if (!cancelled) {
-          setIsLoading(false);
+          setIsLoadingExistingResponse(false);
         }
       }
     };
 
-    run();
+    loadExistingResponse();
 
     return () => {
       cancelled = true;
     };
-  }, [form.id, responseId, authHeader]);
+  }, [isEditResponse, responseId, currentFormId, authHeader]);
 
-  const respondentLabel = useMemo(() => {
-    return (
-      responseData?.respondent_name ||
-      responseData?.respondent_email ||
-      "Não informado"
-    );
-  }, [responseData]);
-
-  const printableSections = useMemo(() => {
-    const answers = responseData?.answers ?? {};
-
-    return form.sections.map((section) => ({
-      ...section,
-      printableQuestions: section.questions.map((question) => ({
-        id: question.id,
-        label: question.label,
-        type: question.type,
-        answer: getAnswerLabel({
-          questionType: question.type,
-          value: answers[question.id],
-          options: question.options
-        })
-      }))
+  const handleAnswerChange = (question: Question, value: string | string[]) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [question.id]: value
     }));
-  }, [form, responseData]);
 
-  const handlePrint = () => {
-    window.print();
+    setErrors((prev) => {
+      if (!prev[question.id]) return prev;
+
+      const next = { ...prev };
+      delete next[question.id];
+      return next;
+    });
+
+    if (submitError) {
+      setSubmitError("");
+    }
   };
 
-  if (isLoading) {
+  const handleBack = () => {
+    setSubmitted(false);
+    setErrors({});
+    setSubmitError("");
+
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+
+      const nextHistory = [...prev];
+      const previousSectionIndex = nextHistory.pop();
+
+      if (typeof previousSectionIndex === "number") {
+        setCurrentSectionIndex(previousSectionIndex);
+      }
+
+      return nextHistory;
+    });
+  };
+
+  const submitForm = async () => {
+    if (!canSubmitForm) {
+      throw new Error("Salve o formulário antes de responder.");
+    }
+
+    if (!user?.id) {
+      throw new Error("Usuário não autenticado para enviar resposta.");
+    }
+
+    const payload = {
+      formId: currentFormId,
+      formTitle: form.title,
+      responseId: isEditResponse ? responseId : undefined,
+      respondentId: user.id,
+      respondentName: user.name ?? "",
+      respondentEmail: user.email ?? "",
+      source: "web",
+      mode: isEditResponse ? "edit" : "create",
+      answers: buildSubmitAnswers(answers)
+    };
+
+    const response = await fetch("/api/forms/submit", {
+      method: isEditResponse ? "PUT" : "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeader()
+      },
+      body: JSON.stringify(payload)
+    });
+
+    await parseJsonResponse(response);
+  };
+
+  const handleNext = async () => {
+    if (!section) return;
+
+    const validationErrors = validateSection(section.questions, answers);
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors);
+      return;
+    }
+
+    setErrors({});
+    setSubmitError("");
+
+    const next = getNextSectionIndex(form, currentSectionIndex, answers);
+
+    const shouldSubmit =
+      next === "submit" ||
+      (typeof next === "number" && next >= form.sections.length);
+
+    if (shouldSubmit) {
+      try {
+        setIsSubmitting(true);
+        await submitForm();
+        setSubmitted(true);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Erro ao enviar formulário.";
+        setSubmitError(message);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    if (typeof next === "number") {
+      setHistory((prev) => [...prev, currentSectionIndex]);
+      setCurrentSectionIndex(next);
+    }
+  };
+
+  const handleRestart = () => {
+    setSubmitted(false);
+    setCurrentSectionIndex(0);
+    setErrors({});
+    setHistory([]);
+    setSubmitError("");
+
+    if (!isEditResponse) {
+      setAnswers({});
+    }
+  };
+
+  if (!section && !isLoadingExistingResponse) {
+    return null;
+  }
+
+  if (isLoadingExistingResponse) {
     return (
       <div
         style={{
@@ -228,92 +298,68 @@ export default function FormResponsePrintPage({ form }: Props) {
           boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
         }}
       >
-        Carregando resposta para impressão...
+        <h2
+          style={{ margin: 0, fontSize: 24, fontWeight: 500, color: "#202124" }}
+        >
+          Carregando resposta
+        </h2>
+
+        <p style={{ marginTop: 12, color: "#5f6368", lineHeight: 1.5 }}>
+          Aguarde enquanto buscamos os dados para edição.
+        </p>
       </div>
     );
   }
 
-  if (loadError) {
+  if (loadExistingResponseError) {
     return (
       <div
         style={{
           background: "#fff",
           borderRadius: 12,
           padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          color: "#d93025",
-          fontWeight: 500
+          boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
         }}
       >
-        {loadError}
+        <h2
+          style={{ margin: 0, fontSize: 24, fontWeight: 500, color: "#202124" }}
+        >
+          Não foi possível carregar a resposta
+        </h2>
+
+        <p style={{ marginTop: 12, color: "#d93025", lineHeight: 1.5 }}>
+          {loadExistingResponseError}
+        </p>
       </div>
     );
   }
 
-  if (!responseData) {
+  if (submitted) {
     return (
       <div
         style={{
           background: "#fff",
           borderRadius: 12,
           padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          color: "#5f6368"
+          boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
         }}
       >
-        Nenhuma resposta encontrada para impressão.
-      </div>
-    );
-  }
+        <h2
+          style={{ margin: 0, fontSize: 24, fontWeight: 500, color: "#202124" }}
+        >
+          {isEditResponse ? "Resposta atualizada" : "Resposta enviada"}
+        </h2>
 
-  return (
-    <div>
-      <style>
-        {`
-          @page {
-            size: auto;
-            margin: 14mm;
-          }
+        <p style={{ marginTop: 12, color: "#5f6368", lineHeight: 1.5 }}>
+          {isEditResponse
+            ? "As alterações foram salvas com sucesso."
+            : "Sua resposta foi registrada com sucesso."}
+        </p>
 
-          @media print {
-            .print-actions {
-              display: none !important;
-            }
-
-            body {
-              background: #fff !important;
-            }
-
-            .print-sheet {
-              box-shadow: none !important;
-              border-radius: 0 !important;
-              padding: 0 !important;
-            }
-
-            .print-section {
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-
-            .print-question {
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-          }
-        `}
-      </style>
-
-      <div
-        className="print-actions"
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: 16
-        }}
-      >
         <button
-          onClick={handlePrint}
+          onClick={handleRestart}
           style={{
+            marginTop: 20,
             background: "#673ab7",
             color: "#fff",
             border: "none",
@@ -323,123 +369,119 @@ export default function FormResponsePrintPage({ form }: Props) {
             cursor: "pointer"
           }}
         >
-          Imprimir / Salvar em PDF
+          {isEditResponse ? "Continuar revisando" : "Responder novamente"}
         </button>
       </div>
+    );
+  }
+
+  return (
+    <div>
+      {isEditResponse && (
+        <div
+          style={{
+            marginBottom: 14,
+            background: "rgba(103,58,183,0.08)",
+            color: "#673ab7",
+            borderRadius: 10,
+            padding: "12px 14px",
+            fontSize: 13,
+            fontWeight: 600
+          }}
+        >
+          Você está editando uma resposta já enviada.
+        </div>
+      )}
+
+      <SectionPreview
+        section={section}
+        index={currentSectionIndex}
+        answers={answers}
+        errors={errors}
+        onAnswerChange={handleAnswerChange}
+      />
+
+      {!canSubmitForm && isLast && (
+        <div
+          style={{
+            marginTop: 14,
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#b26a00"
+          }}
+        >
+          Salve o formulário antes de responder.
+        </div>
+      )}
+
+      {submitError && (
+        <div
+          style={{
+            marginTop: 14,
+            fontSize: 13,
+            fontWeight: 500,
+            color: "#d93025"
+          }}
+        >
+          {submitError}
+        </div>
+      )}
 
       <div
-        className="print-sheet"
         style={{
-          background: "#fff",
-          borderRadius: 12,
-          padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
+          marginTop: 20,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
         }}
       >
-        <div style={{ marginBottom: 24 }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 26,
-              fontWeight: 700,
-              color: "#202124"
-            }}
-          >
-            {form.title || responseData.form_title || "Formulário"}
-          </h1>
-
-          <div
-            style={{
-              marginTop: 12,
-              display: "grid",
-              gap: 6,
-              color: "#5f6368",
-              fontSize: 14
-            }}
-          >
-            <div>
-              <strong>Respondente:</strong> {respondentLabel}
-            </div>
-            <div>
-              <strong>Data da resposta:</strong>{" "}
-              {formatDateTime(responseData.submitted_at)}
-            </div>
-            <div>
-              <strong>ID da resposta:</strong> {responseData.id || "—"}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ display: "grid", gap: 18 }}>
-          {printableSections.map((section, sectionIndex) => (
-            <div
-              key={section.id}
-              className="print-section"
+        <div>
+          {history.length > 0 && (
+            <button
+              onClick={handleBack}
+              disabled={isSubmitting}
               style={{
-                border: "1px solid rgba(0,0,0,0.08)",
-                borderRadius: 12,
-                padding: 18
+                background: "transparent",
+                color: "#673ab7",
+                border: "none",
+                padding: "10px 0",
+                fontWeight: 600,
+                cursor: isSubmitting ? "not-allowed" : "pointer",
+                opacity: isSubmitting ? 0.6 : 1
               }}
             >
-              <div
-                style={{
-                  fontSize: 18,
-                  fontWeight: 700,
-                  color: "#202124"
-                }}
-              >
-                {section.title || `Seção ${sectionIndex + 1}`}
-              </div>
-
-              {section.description ? (
-                <div
-                  style={{
-                    marginTop: 6,
-                    color: "#5f6368",
-                    lineHeight: 1.5
-                  }}
-                >
-                  {section.description}
-                </div>
-              ) : null}
-
-              <div style={{ marginTop: 16, display: "grid", gap: 14 }}>
-                {section.printableQuestions.map((question, questionIndex) => (
-                  <div
-                    key={question.id}
-                    className="print-question"
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 10,
-                      background: "rgba(0,0,0,0.03)"
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: "#202124"
-                      }}
-                    >
-                      {sectionIndex + 1}.{questionIndex + 1} {question.label}
-                    </div>
-
-                    <div
-                      style={{
-                        marginTop: 8,
-                        color: "#3c4043",
-                        lineHeight: 1.5,
-                        whiteSpace: "pre-wrap"
-                      }}
-                    >
-                      {question.answer}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+              Voltar
+            </button>
+          )}
         </div>
+
+        <button
+          onClick={handleNext}
+          disabled={isSubmitting || isLoadingExistingResponse}
+          style={{
+            background: "#673ab7",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            padding: "10px 20px",
+            fontWeight: 600,
+            cursor:
+              isSubmitting || isLoadingExistingResponse
+                ? "not-allowed"
+                : "pointer",
+            opacity: isSubmitting || isLoadingExistingResponse ? 0.7 : 1
+          }}
+        >
+          {isSubmitting
+            ? isEditResponse
+              ? "Salvando..."
+              : "Enviando..."
+            : isLast
+            ? isEditResponse
+              ? "Salvar alterações"
+              : "Enviar"
+            : "Avançar"}
+        </button>
       </div>
     </div>
   );
