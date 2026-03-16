@@ -239,7 +239,7 @@ export default function FormBuilderPage() {
       setFormsError("");
 
       try {
-        const response = await fetch("/api/forms/list", {
+        const response = await fetch("/api/forms/responses/list", {
           headers: {
             ...authHeader()
           }
