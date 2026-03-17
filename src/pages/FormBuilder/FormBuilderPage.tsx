@@ -14,7 +14,6 @@ import {
 import { useAuth } from "../../auth/AuthContext";
 import FormPreview from "./components/FormPreview";
 import FormResponsePage from "./components/FormResponsePage";
-import FormResponsePrintPage from "./components/FormResponsePrintPage";
 import { useFormBuilder, STORAGE_KEY } from "./useFormBuilder";
 import type { Mode, QuestionType } from "./types";
 
@@ -100,37 +99,26 @@ export default function FormBuilderPage() {
   const [isLoadingForm, setIsLoadingForm] = useState(false);
   const [loadFormError, setLoadFormError] = useState("");
 
-  const [expandedResponsesFormId, setExpandedResponsesFormId] = useState<
-    string | null
-  >(null);
-  const [loadingResponsesFormId, setLoadingResponsesFormId] = useState<
-    string | null
-  >(null);
-  const [responsesByForm, setResponsesByForm] = useState<
-    Record<string, ListedResponse[]>
-  >({});
-  const [responsesErrorByForm, setResponsesErrorByForm] = useState<
-    Record<string, string>
-  >({});
+  const [expandedResponsesFormId, setExpandedResponsesFormId] = useState<string | null>(null);
+  const [loadingResponsesFormId, setLoadingResponsesFormId] = useState<string | null>(null);
+  const [responsesByForm, setResponsesByForm] = useState<Record<string, ListedResponse[]>>({});
+  const [responsesErrorByForm, setResponsesErrorByForm] = useState<Record<string, string>>({});
 
   const isAdmin = user?.role === "admin";
 
   const isNew = params.get("new") === "1";
   const formId = params.get("id")?.trim() || "";
-
   const rawMode = params.get("mode");
-  const isPrintResponse = rawMode === "print-response";
   const urlMode = ((rawMode as Mode | null) ?? "builder");
 
   const isPreview = urlMode === "preview";
   const isRespond = urlMode === "respond";
-
   const shouldShowList = !formId && !isNew;
 
-  const updateParams = (
-    fn: (next: URLSearchParams) => void,
-    replace = true
-  ) => {
+  const currentStatus = String((state.form as any)?.status ?? "").toLowerCase();
+  const isPublished = currentStatus === "published" || currentStatus === "active";
+
+  const updateParams = (fn: (next: URLSearchParams) => void, replace = true) => {
     const next = new URLSearchParams(params);
     fn(next);
     setParams(next, { replace });
@@ -139,11 +127,6 @@ export default function FormBuilderPage() {
   useEffect(() => {
     if (shouldShowList) {
       document.title = "Formulários";
-      return;
-    }
-
-    if (isPrintResponse) {
-      document.title = "Imprimir resposta";
       return;
     }
 
@@ -163,10 +146,10 @@ export default function FormBuilderPage() {
     }
 
     document.title = "Editar formulário";
-  }, [shouldShowList, isPrintResponse, isRespond, isPreview, isNew]);
+  }, [shouldShowList, isRespond, isPreview, isNew]);
 
   useEffect(() => {
-    if (shouldShowList || isPrintResponse) return;
+    if (shouldShowList) return;
 
     const safeMode: Mode =
       isRespond || isPreview || isAdmin ? urlMode : "respond";
@@ -176,15 +159,7 @@ export default function FormBuilderPage() {
     if (safeMode === "preview" || safeMode === "respond") {
       actions.setActiveSection(null);
     }
-  }, [
-    urlMode,
-    shouldShowList,
-    isPrintResponse,
-    actions,
-    isRespond,
-    isPreview,
-    isAdmin
-  ]);
+  }, [urlMode, shouldShowList, actions, isRespond, isPreview, isAdmin]);
 
   useEffect(() => {
     if (!isNew || !isAdmin) return;
@@ -220,10 +195,9 @@ export default function FormBuilderPage() {
         if (cancelled) return;
 
         const message =
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar formulário.";
+          error instanceof Error ? error.message : "Erro ao carregar formulário.";
 
+        actions.reset({ hard: true });
         setLoadFormError(message);
       } finally {
         if (!cancelled) {
@@ -257,9 +231,7 @@ export default function FormBuilderPage() {
         setForms(Array.isArray(data.forms) ? data.forms : []);
       } catch (error) {
         const message =
-          error instanceof Error
-            ? error.message
-            : "Erro ao carregar formulários.";
+          error instanceof Error ? error.message : "Erro ao carregar formulários.";
 
         setFormsError(message);
         setForms([]);
@@ -339,7 +311,7 @@ export default function FormBuilderPage() {
   };
 
   const handleSave = async () => {
-    if (isPreview || isRespond || isPrintResponse || !isAdmin) return;
+    if (isPreview || isRespond || !isAdmin) return;
 
     setIsSaving(true);
     setSaveMessage("");
@@ -376,6 +348,44 @@ export default function FormBuilderPage() {
       setSaveMessage(message);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleTogglePublish = async () => {
+    if (!isAdmin || !formId?.trim()) return;
+
+    try {
+      setSaveMessage("");
+
+      const nextStatus = isPublished ? "draft" : "published";
+
+      const response = await fetch("/api/forms/status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeader()
+        },
+        body: JSON.stringify({
+          id: formId,
+          status: nextStatus
+        })
+      });
+
+      await parseJsonResponse(response);
+      await actions.load(formId, authHeader());
+
+      setSaveMessage(
+        nextStatus === "published"
+          ? "Formulário publicado com sucesso."
+          : "Formulário voltou para edição."
+      );
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Erro ao atualizar o status do formulário.";
+
+      setSaveMessage(message);
     }
   };
 
@@ -422,9 +432,7 @@ export default function FormBuilderPage() {
       }));
     } catch (error) {
       const message =
-        error instanceof Error
-          ? error.message
-          : "Erro ao carregar respostas.";
+        error instanceof Error ? error.message : "Erro ao carregar respostas.";
 
       setResponsesErrorByForm((prev) => ({
         ...prev,
@@ -468,16 +476,11 @@ export default function FormBuilderPage() {
   ) => {
     if (!targetFormId?.trim() || !responseId?.trim() || !canPrint) return;
 
-    updateParams(
-      (p) => {
-        p.set("id", targetFormId);
-        p.set("mode", "print-response");
-        p.set("responseId", responseId);
-        p.delete("new");
-        p.delete("editResponse");
-      },
-      true
-    );
+    const url =
+      `/response-print?formId=${encodeURIComponent(targetFormId)}` +
+      `&responseId=${encodeURIComponent(responseId)}`;
+
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const activeSectionId = state.activeSectionId;
@@ -492,18 +495,10 @@ export default function FormBuilderPage() {
       isAdmin &&
       !shouldShowList &&
       !isRespond &&
-      !isPrintResponse &&
       state.mode === "builder" &&
       !!state.activeSectionId
     );
-  }, [
-    isAdmin,
-    shouldShowList,
-    isRespond,
-    isPrintResponse,
-    state.mode,
-    state.activeSectionId
-  ]);
+  }, [isAdmin, shouldShowList, isRespond, state.mode, state.activeSectionId]);
 
   if (shouldShowList) {
     return (
@@ -898,34 +893,48 @@ export default function FormBuilderPage() {
   }
 
   return (
-    <Page
-      data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}
-    >
-      <Center
-        data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}
-      >
+    <Page data-preview={isPreview || isRespond ? "true" : "false"}>
+      <Center data-preview={isPreview || isRespond ? "true" : "false"}>
         <Header>
           <div style={{ flex: 1, minWidth: 260 }}>
-            <TitleInput
-              placeholder="Nome do formulário"
-              value={state.form.title}
-              onChange={(e) => actions.setTitle(e.target.value)}
-              disabled={
-                !isAdmin ||
-                isPreview ||
-                isRespond ||
-                isPrintResponse ||
-                isLoadingForm
-              }
-            />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flexWrap: "wrap"
+              }}
+            >
+              <TitleInput
+                placeholder="Nome do formulário"
+                value={state.form.title}
+                onChange={(e) => actions.setTitle(e.target.value)}
+                disabled={!isAdmin || isPreview || isRespond || isLoadingForm}
+              />
+
+              {formId && !isRespond && (
+                <div
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 999,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    background: isPublished
+                      ? "rgba(34,197,94,0.12)"
+                      : "rgba(245,158,11,0.12)",
+                    color: isPublished ? "#15803d" : "#b45309"
+                  }}
+                >
+                  {isPublished ? "Publicado" : "Em edição"}
+                </div>
+              )}
+            </div>
 
             <Subtle>
               {isLoadingForm
                 ? "Carregando formulário..."
                 : loadFormError
                 ? loadFormError
-                : isPrintResponse
-                ? "Visualização pronta para impressão ou salvamento em PDF."
                 : isRespond
                 ? "Preencha o formulário e envie suas respostas."
                 : isPreview
@@ -936,7 +945,7 @@ export default function FormBuilderPage() {
           </div>
 
           <Actions>
-            {!isPreview && !isRespond && !isPrintResponse && isAdmin && (
+            {!isPreview && !isRespond && isAdmin && (
               <IconBtn
                 title={isSaving ? "Salvando..." : "Salvar"}
                 onClick={handleSave}
@@ -950,7 +959,7 @@ export default function FormBuilderPage() {
               <FolderOpen size={20} weight="bold" />
             </IconBtn>
 
-            {isAdmin && !isRespond && !isPrintResponse && (
+            {isAdmin && !isRespond && (
               <>
                 <IconBtn
                   title="Editar"
@@ -978,6 +987,18 @@ export default function FormBuilderPage() {
                   <PaperPlaneTilt size={20} weight="bold" />
                 </IconBtn>
 
+                <IconBtn
+                  title={isPublished ? "Voltar para edição" : "Publicar formulário"}
+                  onClick={handleTogglePublish}
+                  disabled={isLoadingForm || !formId}
+                >
+                  {isPublished ? (
+                    <PencilSimple size={20} weight="bold" />
+                  ) : (
+                    <PaperPlaneTilt size={20} weight="bold" />
+                  )}
+                </IconBtn>
+
                 <IconBtn title="Novo formulário" onClick={handleNew}>
                   <FileText size={20} weight="bold" />
                 </IconBtn>
@@ -986,9 +1007,7 @@ export default function FormBuilderPage() {
           </Actions>
         </Header>
 
-        <Body
-          data-preview={isPreview || isRespond || isPrintResponse ? "true" : "false"}
-        >
+        <Body data-preview={isPreview || isRespond ? "true" : "false"}>
           {isLoadingForm ? (
             <div
               style={{
@@ -1013,8 +1032,6 @@ export default function FormBuilderPage() {
             >
               {loadFormError}
             </div>
-          ) : isPrintResponse ? (
-            <FormResponsePrintPage form={state.form} />
           ) : isRespond ? (
             <FormResponsePage form={state.form} />
           ) : isPreview ? (
