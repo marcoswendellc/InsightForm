@@ -32,6 +32,7 @@ const HEADERS = {
     "label",
     "required",
     "jump_enabled",
+    "include_time",
     "sort_order"
   ],
   options: [
@@ -63,9 +64,11 @@ function rowToObject(
   row: unknown[]
 ): Record<string, string> {
   const obj: Record<string, string> = {};
+
   headers.forEach((header, index) => {
     obj[header] = String(row[index] ?? "");
   });
+
   return obj;
 }
 
@@ -142,9 +145,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ]);
 
     const formRows = formsRaw.slice(1).map((row) => rowToObject(HEADERS.forms, row));
-    const sectionRows = sectionsRaw.slice(1).map((row) => rowToObject(HEADERS.sections, row));
-    const questionRows = questionsRaw.slice(1).map((row) => rowToObject(HEADERS.questions, row));
-    const optionRows = optionsRaw.slice(1).map((row) => rowToObject(HEADERS.options, row));
+    const sectionRows = sectionsRaw
+      .slice(1)
+      .map((row) => rowToObject(HEADERS.sections, row));
+    const questionRows = questionsRaw
+      .slice(1)
+      .map((row) => rowToObject(HEADERS.questions, row));
+    const optionRows = optionsRaw
+      .slice(1)
+      .map((row) => rowToObject(HEADERS.options, row));
 
     const formRow = formRows.find((row) => row.id === formId);
 
@@ -193,6 +202,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 questionRow.type === "multipleChoice"
                   ? parseBool(questionRow.jump_enabled)
                   : undefined,
+              includeTime:
+                questionRow.type === "date"
+                  ? parseBool(questionRow.include_time)
+                  : false,
               options
             };
           });
