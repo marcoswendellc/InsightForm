@@ -48,8 +48,18 @@ function formatDateTime(value?: string) {
   });
 }
 
-function formatDateOnly(value?: string) {
-  if (!value) return "—";
+function formatDateAnswer(value?: string) {
+  if (!value) return "";
+
+  if (value.includes("T")) {
+    const [datePart, timePart] = value.split("T");
+
+    const date = new Date(`${datePart}T00:00:00`);
+    if (Number.isNaN(date.getTime())) return value;
+
+    const formattedDate = date.toLocaleDateString("pt-BR");
+    return timePart ? `${formattedDate} ${timePart.slice(0, 5)}` : formattedDate;
+  }
 
   const date = new Date(`${value}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
@@ -57,16 +67,24 @@ function formatDateOnly(value?: string) {
   return date.toLocaleDateString("pt-BR");
 }
 
+function hasRealAnswer(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+
+  return typeof value === "string" && value.trim().length > 0;
+}
+
 function normalizeAnswerValue(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "—";
+    return value.length ? value.join(", ") : "";
   }
 
   if (typeof value === "string" && value.trim()) {
-    return value;
+    return value.trim();
   }
 
-  return "—";
+  return "";
 }
 
 function getBooleanLabel(value: string | string[] | undefined) {
@@ -76,7 +94,7 @@ function getBooleanLabel(value: string | string[] | undefined) {
   if (["true", "1", "sim", "yes"].includes(normalized)) return "Sim";
   if (["false", "0", "não", "nao", "no"].includes(normalized)) return "Não";
 
-  return raw || "—";
+  return raw || "";
 }
 
 function getAnswerLabel(params: {
@@ -89,15 +107,17 @@ function getAnswerLabel(params: {
 }) {
   const { questionType, value, options } = params;
 
+  if (!hasRealAnswer(value)) return "";
+
   if (questionType === "multipleChoice") {
     const selectedId = typeof value === "string" ? value : "";
     const selected = options?.find((opt) => opt.id === selectedId);
-    return selected?.label || "—";
+    return selected?.label || "";
   }
 
   if (questionType === "checkbox") {
     const ids = Array.isArray(value) ? value : [];
-    if (!ids.length) return "—";
+    if (!ids.length) return "";
 
     const labels = ids.map((id) => {
       const found = options?.find((opt) => opt.id === id);
@@ -108,7 +128,7 @@ function getAnswerLabel(params: {
   }
 
   if (questionType === "date") {
-    return formatDateOnly(typeof value === "string" ? value : "");
+    return formatDateAnswer(typeof value === "string" ? value : "");
   }
 
   if (questionType === "boolean") {
@@ -199,19 +219,31 @@ export default function FormResponsePrintPage({ form }: Props) {
   const printableSections = useMemo(() => {
     const answers = responseData?.answers ?? {};
 
-    return form.sections.map((section) => ({
-      ...section,
-      printableQuestions: section.questions.map((question) => ({
-        id: question.id,
-        label: question.label,
-        type: question.type,
-        answer: getAnswerLabel({
-          questionType: question.type,
-          value: answers[question.id],
-          options: question.options
-        })
-      }))
-    }));
+    return form.sections
+      .map((section) => {
+        const printableQuestions = section.questions
+          .map((question) => {
+            const answer = getAnswerLabel({
+              questionType: question.type,
+              value: answers[question.id],
+              options: question.options
+            });
+
+            return {
+              id: question.id,
+              label: question.label,
+              type: question.type,
+              answer
+            };
+          })
+          .filter((question) => question.answer.trim() !== "");
+
+        return {
+          ...section,
+          printableQuestions
+        };
+      })
+      .filter((section) => section.printableQuestions.length > 0);
   }, [form, responseData]);
 
   const handlePrint = () => {
@@ -219,32 +251,12 @@ export default function FormResponsePrintPage({ form }: Props) {
   };
 
   if (isLoading) {
-    return (
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
-        }}
-      >
-        Carregando resposta para impressão...
-      </div>
-    );
+    return <div style={{ padding: 24 }}>Carregando resposta para impressão...</div>;
   }
 
   if (loadError) {
     return (
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          color: "#d93025",
-          fontWeight: 500
-        }}
-      >
+      <div style={{ padding: 24, color: "#b42318", fontWeight: 600 }}>
         {loadError}
       </div>
     );
@@ -252,15 +264,7 @@ export default function FormResponsePrintPage({ form }: Props) {
 
   if (!responseData) {
     return (
-      <div
-        style={{
-          background: "#fff",
-          borderRadius: 12,
-          padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
-          color: "#5f6368"
-        }}
-      >
+      <div style={{ padding: 24, color: "#667085" }}>
         Nenhuma resposta encontrada para impressão.
       </div>
     );
@@ -271,8 +275,12 @@ export default function FormResponsePrintPage({ form }: Props) {
       <style>
         {`
           @page {
-            size: auto;
-            margin: 14mm;
+            size: A4;
+            margin: 18mm;
+          }
+
+          body {
+            background: #ffffff;
           }
 
           @media print {
@@ -280,14 +288,10 @@ export default function FormResponsePrintPage({ form }: Props) {
               display: none !important;
             }
 
-            body {
-              background: #fff !important;
-            }
-
-            .print-sheet {
-              box-shadow: none !important;
-              border-radius: 0 !important;
+            .print-doc {
               padding: 0 !important;
+              margin: 0 !important;
+              max-width: none !important;
             }
 
             .print-section {
@@ -308,13 +312,13 @@ export default function FormResponsePrintPage({ form }: Props) {
         style={{
           display: "flex",
           justifyContent: "flex-end",
-          marginBottom: 16
+          marginBottom: 24
         }}
       >
         <button
           onClick={handlePrint}
           style={{
-            background: "#673ab7",
+            background: "#ED1C24",
             color: "#fff",
             border: "none",
             borderRadius: 8,
@@ -328,35 +332,30 @@ export default function FormResponsePrintPage({ form }: Props) {
       </div>
 
       <div
-        className="print-sheet"
+        className="print-doc"
         style={{
+          maxWidth: 820,
+          margin: "0 auto",
           background: "#fff",
-          borderRadius: 12,
-          padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
+          color: "#101828",
+          fontFamily: `"Georgia", "Times New Roman", serif`,
+          fontSize: 12,
+          lineHeight: 1.65
         }}
       >
-        <div style={{ marginBottom: 24 }}>
+        <header style={{ marginBottom: 32 }}>
           <h1
             style={{
               margin: 0,
-              fontSize: 26,
+              fontSize: 24,
               fontWeight: 700,
-              color: "#202124"
+              lineHeight: 1.3
             }}
           >
             {form.title || responseData.form_title || "Formulário"}
           </h1>
 
-          <div
-            style={{
-              marginTop: 12,
-              display: "grid",
-              gap: 6,
-              color: "#5f6368",
-              fontSize: 14
-            }}
-          >
+          <div style={{ marginTop: 16 }}>
             <div>
               <strong>Respondente:</strong> {respondentLabel}
             </div>
@@ -368,67 +367,56 @@ export default function FormResponsePrintPage({ form }: Props) {
               <strong>ID da resposta:</strong> {responseData.id || "—"}
             </div>
           </div>
-        </div>
+        </header>
 
-        <div style={{ display: "grid", gap: 18 }}>
-          {printableSections.map((section, sectionIndex) => (
-            <div
+        {printableSections.length === 0 ? (
+          <p style={{ margin: 0, color: "#667085" }}>
+            Nenhuma resposta preenchida para exibir.
+          </p>
+        ) : (
+          printableSections.map((section, sectionIndex) => (
+            <section
               key={section.id}
               className="print-section"
-              style={{
-                border: "1px solid rgba(0,0,0,0.08)",
-                borderRadius: 12,
-                padding: 18
-              }}
+              style={{ marginBottom: 28 }}
             >
-              <div
+              <h2
                 style={{
+                  margin: "0 0 10px 0",
                   fontSize: 18,
                   fontWeight: 700,
-                  color: "#202124"
+                  lineHeight: 1.4
                 }}
               >
                 {section.title || `Seção ${sectionIndex + 1}`}
-              </div>
+              </h2>
 
               {section.description ? (
-                <div
+                <p
                   style={{
-                    marginTop: 6,
-                    color: "#5f6368",
-                    lineHeight: 1.5
+                    margin: "0 0 16px 0",
+                    color: "#475467"
                   }}
                 >
                   {section.description}
-                </div>
+                </p>
               ) : null}
 
-              <div style={{ marginTop: 16, display: "grid", gap: 14 }}>
+              <div style={{ display: "grid", gap: 14 }}>
                 {section.printableQuestions.map((question, questionIndex) => (
-                  <div
-                    key={question.id}
-                    className="print-question"
-                    style={{
-                      padding: "12px 14px",
-                      borderRadius: 10,
-                      background: "rgba(0,0,0,0.03)"
-                    }}
-                  >
+                  <div key={question.id} className="print-question">
                     <div
                       style={{
-                        fontSize: 14,
                         fontWeight: 700,
-                        color: "#202124"
+                        marginBottom: 4
                       }}
                     >
-                      {sectionIndex + 1}.{questionIndex + 1} {question.label}
+                      {sectionIndex + 1}.{questionIndex + 1}{" "}
+                      {question.label || "Pergunta sem título"}
                     </div>
 
                     <div
                       style={{
-                        marginTop: 8,
-                        color: "#3c4043",
-                        lineHeight: 1.5,
                         whiteSpace: "pre-wrap"
                       }}
                     >
@@ -437,9 +425,9 @@ export default function FormResponsePrintPage({ form }: Props) {
                   </div>
                 ))}
               </div>
-            </div>
-          ))}
-        </div>
+            </section>
+          ))
+        )}
       </div>
     </div>
   );
