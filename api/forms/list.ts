@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
-import { getUserFromRequest } from "../_auth.js";
+import { getUserFromRequest, isPublishedStatus } from "../_auth.js";
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -67,13 +67,11 @@ function sortByUpdatedAtDesc(forms: any[]) {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-
   if (req.method !== "GET") {
     return res.status(405).json({ ok: false });
   }
 
   try {
-
     const user = getUserFromRequest(req);
 
     if (!user) {
@@ -86,14 +84,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     assertEnv();
 
     const sheets = await getSheetsClient();
-
     const rows = await readTab(sheets, TAB_NAME);
 
     if (rows.length === 0) {
       return res.json({ ok: true, forms: [] });
     }
 
-    const forms = rows
+    const allForms = rows
       .slice(1)
       .map((row) => rowToObject(HEADERS, row))
       .filter((row) => row.id)
@@ -104,20 +101,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         updated_at: row.updated_at
       }));
 
+    const visibleForms =
+      user.role === "admin"
+        ? allForms
+        : allForms.filter((form) => isPublishedStatus(form.status));
+
     return res.status(200).json({
       ok: true,
-      forms: sortByUpdatedAtDesc(forms)
+      forms: sortByUpdatedAtDesc(visibleForms)
     });
-
   } catch (e: any) {
-
     console.error("forms/list.ts error:", e);
 
     return res.status(500).json({
       ok: false,
       error: e?.message ?? "error"
     });
-
   }
-
 }
