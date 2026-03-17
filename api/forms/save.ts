@@ -23,6 +23,7 @@ type QuestionPayload = {
   label?: string;
   required?: boolean;
   jumpEnabled?: boolean;
+  includeTime?: boolean;
   options?: OptionPayload[];
 };
 
@@ -48,6 +49,20 @@ type SaveRequestBody =
     };
 
 type SheetRowObject = Record<string, string>;
+
+type NormalizedOption = OptionPayload & {
+  id: string;
+};
+
+type NormalizedQuestion = Omit<QuestionPayload, "options"> & {
+  id: string;
+  options: NormalizedOption[];
+};
+
+type NormalizedSection = Omit<SectionPayload, "questions"> & {
+  id: string;
+  questions: NormalizedQuestion[];
+};
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -79,6 +94,7 @@ const HEADERS = {
     "label",
     "required",
     "jump_enabled",
+    "include_time",
     "sort_order"
   ],
   options: [
@@ -121,7 +137,10 @@ function splitGoTo(goTo?: GoTo): { kind: string; sectionId: string } {
   if (!goTo) return { kind: "next", sectionId: "" };
 
   if (goTo.kind === "section") {
-    return { kind: "section", sectionId: goTo.sectionId };
+    return {
+      kind: "section",
+      sectionId: normalizeString(goTo.sectionId)
+    };
   }
 
   return { kind: goTo.kind, sectionId: "" };
@@ -217,16 +236,34 @@ async function rewriteTab(
   });
 }
 
-function buildSectionRows(formId: string, sections: SectionPayload[]) {
+function normalizeSections(sections: SectionPayload[]): NormalizedSection[] {
+  return sections.map((section) => ({
+    ...section,
+    id: normalizeString(section.id) || uuid(),
+    questions: (Array.isArray(section.questions) ? section.questions : []).map(
+      (question) => ({
+        ...question,
+        id: normalizeString(question.id) || uuid(),
+        options: (Array.isArray(question.options) ? question.options : []).map(
+          (option) => ({
+            ...option,
+            id: normalizeString(option.id) || uuid()
+          })
+        )
+      })
+    )
+  }));
+}
+
+function buildSectionRows(formId: string, sections: NormalizedSection[]) {
   const rows: string[][] = [];
 
   for (let si = 0; si < sections.length; si++) {
     const section = sections[si];
-    const sectionId = normalizeString(section.id) || uuid();
     const goTo = splitGoTo(section.goTo);
 
     rows.push([
-      sectionId,
+      section.id,
       formId,
       normalizeString(section.title),
       normalizeString(section.description),
@@ -239,27 +276,28 @@ function buildSectionRows(formId: string, sections: SectionPayload[]) {
   return rows;
 }
 
-function buildQuestionRowsAndOptionRows(formId: string, sections: SectionPayload[]) {
+function buildQuestionRowsAndOptionRows(
+  formId: string,
+  sections: NormalizedSection[]
+) {
   const questionRows: string[][] = [];
   const optionRows: string[][] = [];
 
   for (let si = 0; si < sections.length; si++) {
     const section = sections[si];
-    const sectionId = normalizeString(section.id) || uuid();
-    const questions = Array.isArray(section.questions) ? section.questions : [];
 
-    for (let qi = 0; qi < questions.length; qi++) {
-      const question = questions[qi];
-      const questionId = normalizeString(question.id) || uuid();
+    for (let qi = 0; qi < section.questions.length; qi++) {
+      const question = section.questions[qi];
 
       questionRows.push([
-        questionId,
+        question.id,
         formId,
-        sectionId,
+        section.id,
         normalizeString(question.type),
         normalizeString(question.label),
         question.required ? "true" : "false",
         question.jumpEnabled ? "true" : "false",
+        question.includeTime ? "true" : "false",
         String(qi)
       ]);
 
@@ -268,18 +306,15 @@ function buildQuestionRowsAndOptionRows(formId: string, sections: SectionPayload
 
       if (!needsOptions) continue;
 
-      const options = Array.isArray(question.options) ? question.options : [];
-
-      for (let oi = 0; oi < options.length; oi++) {
-        const option = options[oi];
-        const optionId = normalizeString(option.id) || uuid();
+      for (let oi = 0; oi < question.options.length; oi++) {
+        const option = question.options[oi];
         const optionGoTo = splitGoTo(option.goTo);
 
         optionRows.push([
-          optionId,
+          option.id,
           formId,
-          sectionId,
-          questionId,
+          section.id,
+          question.id,
           normalizeString(option.label),
           option.isOther ? "true" : "false",
           optionGoTo.kind,
@@ -311,11 +346,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const body = normalizeBody(req.body as SaveRequestBody);
     const normalizedTitle = normalizeString(body.title);
-    const sections = Array.isArray(body.sections) ? body.sections : [];
+    const rawSections = Array.isArray(body.sections) ? body.sections : [];
 
     if (!normalizedTitle || !Array.isArray(body.sections)) {
       return res.status(400).json({ ok: false, error: "Invalid payload" });
     }
+
+    const sections = normalizeSections(rawSections);
 
     assertEnv();
     const sheets = await getSheetsClient();
