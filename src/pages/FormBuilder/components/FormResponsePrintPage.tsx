@@ -58,7 +58,7 @@ function formatDateAnswer(value?: string) {
     if (Number.isNaN(date.getTime())) return value;
 
     const formattedDate = date.toLocaleDateString("pt-BR");
-    return timePart ? `${formattedDate} ${timePart.slice(0, 5)}` : formattedDate;
+    return timePart ? `${formattedDate}, ${timePart.slice(0, 5)}` : formattedDate;
   }
 
   const date = new Date(`${value}T00:00:00`);
@@ -67,12 +67,25 @@ function formatDateAnswer(value?: string) {
   return date.toLocaleDateString("pt-BR");
 }
 
-function hasRealAnswer(value: string | string[] | undefined) {
-  if (Array.isArray(value)) {
-    return value.length > 0;
+function hasMeaningfulAnswer(
+  questionType: string,
+  value: string | string[] | undefined,
+  options?: Array<{ id: string; label: string }>
+) {
+  if (questionType === "checkbox") {
+    return Array.isArray(value) && value.length > 0;
   }
 
-  return typeof value === "string" && value.trim().length > 0;
+  if (questionType === "multipleChoice") {
+    if (typeof value !== "string" || !value.trim()) return false;
+    return !!options?.some((opt) => opt.id === value);
+  }
+
+  if (questionType === "date") {
+    return typeof value === "string" && value.trim() !== "";
+  }
+
+  return typeof value === "string" && value.trim() !== "";
 }
 
 function normalizeAnswerValue(value: string | string[] | undefined) {
@@ -107,8 +120,6 @@ function getAnswerLabel(params: {
 }) {
   const { questionType, value, options } = params;
 
-  if (!hasRealAnswer(value)) return "";
-
   if (questionType === "multipleChoice") {
     const selectedId = typeof value === "string" ? value : "";
     const selected = options?.find((opt) => opt.id === selectedId);
@@ -119,10 +130,12 @@ function getAnswerLabel(params: {
     const ids = Array.isArray(value) ? value : [];
     if (!ids.length) return "";
 
-    const labels = ids.map((id) => {
-      const found = options?.find((opt) => opt.id === id);
-      return found?.label || id;
-    });
+    const labels = ids
+      .map((id) => {
+        const found = options?.find((opt) => opt.id === id);
+        return found?.label || "";
+      })
+      .filter(Boolean);
 
     return labels.join(", ");
   }
@@ -222,24 +235,28 @@ export default function FormResponsePrintPage({ form }: Props) {
     return form.sections
       .map((section) => {
         const printableQuestions = section.questions
-          .map((question) => {
-            const answer = getAnswerLabel({
+          .filter((question) =>
+            hasMeaningfulAnswer(
+              question.type,
+              answers[question.id],
+              question.options
+            )
+          )
+          .map((question) => ({
+            id: question.id,
+            label: question.label,
+            answer: getAnswerLabel({
               questionType: question.type,
               value: answers[question.id],
               options: question.options
-            });
-
-            return {
-              id: question.id,
-              label: question.label,
-              type: question.type,
-              answer
-            };
-          })
+            })
+          }))
           .filter((question) => question.answer.trim() !== "");
 
         return {
-          ...section,
+          id: section.id,
+          title: section.title,
+          description: section.description,
           printableQuestions
         };
       })
@@ -276,11 +293,11 @@ export default function FormResponsePrintPage({ form }: Props) {
         {`
           @page {
             size: A4;
-            margin: 18mm;
+            margin: 20mm 18mm;
           }
 
-          body {
-            background: #ffffff;
+          html, body {
+            background: #fff;
           }
 
           @media print {
@@ -289,16 +306,12 @@ export default function FormResponsePrintPage({ form }: Props) {
             }
 
             .print-doc {
-              padding: 0 !important;
-              margin: 0 !important;
               max-width: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
             }
 
-            .print-section {
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-
+            .print-section,
             .print-question {
               break-inside: avoid;
               page-break-inside: avoid;
@@ -321,8 +334,8 @@ export default function FormResponsePrintPage({ form }: Props) {
             background: "#ED1C24",
             color: "#fff",
             border: "none",
-            borderRadius: 8,
-            padding: "10px 18px",
+            borderRadius: 6,
+            padding: "10px 16px",
             fontWeight: 600,
             cursor: "pointer"
           }}
@@ -338,16 +351,16 @@ export default function FormResponsePrintPage({ form }: Props) {
           margin: "0 auto",
           background: "#fff",
           color: "#101828",
-          fontFamily: `"Georgia", "Times New Roman", serif`,
+          fontFamily: '"Times New Roman", Georgia, serif',
           fontSize: 12,
-          lineHeight: 1.65
+          lineHeight: 1.7
         }}
       >
-        <header style={{ marginBottom: 32 }}>
+        <header style={{ marginBottom: 28 }}>
           <h1
             style={{
               margin: 0,
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: 700,
               lineHeight: 1.3
             }}
@@ -355,16 +368,13 @@ export default function FormResponsePrintPage({ form }: Props) {
             {form.title || responseData.form_title || "Formulário"}
           </h1>
 
-          <div style={{ marginTop: 16 }}>
+          <div style={{ marginTop: 14 }}>
             <div>
               <strong>Respondente:</strong> {respondentLabel}
             </div>
             <div>
               <strong>Data da resposta:</strong>{" "}
               {formatDateTime(responseData.submitted_at)}
-            </div>
-            <div>
-              <strong>ID da resposta:</strong> {responseData.id || "—"}
             </div>
           </div>
         </header>
@@ -378,14 +388,13 @@ export default function FormResponsePrintPage({ form }: Props) {
             <section
               key={section.id}
               className="print-section"
-              style={{ marginBottom: 28 }}
+              style={{ marginBottom: 26 }}
             >
               <h2
                 style={{
                   margin: "0 0 10px 0",
-                  fontSize: 18,
-                  fontWeight: 700,
-                  lineHeight: 1.4
+                  fontSize: 16,
+                  fontWeight: 700
                 }}
               >
                 {section.title || `Seção ${sectionIndex + 1}`}
@@ -394,16 +403,17 @@ export default function FormResponsePrintPage({ form }: Props) {
               {section.description ? (
                 <p
                   style={{
-                    margin: "0 0 16px 0",
-                    color: "#475467"
+                    margin: "0 0 14px 0",
+                    color: "#444",
+                    lineHeight: 1.6
                   }}
                 >
                   {section.description}
                 </p>
               ) : null}
 
-              <div style={{ display: "grid", gap: 14 }}>
-                {section.printableQuestions.map((question, questionIndex) => (
+              <div style={{ display: "grid", gap: 12 }}>
+                {section.printableQuestions.map((question) => (
                   <div key={question.id} className="print-question">
                     <div
                       style={{
@@ -411,15 +421,10 @@ export default function FormResponsePrintPage({ form }: Props) {
                         marginBottom: 4
                       }}
                     >
-                      {sectionIndex + 1}.{questionIndex + 1}{" "}
                       {question.label || "Pergunta sem título"}
                     </div>
 
-                    <div
-                      style={{
-                        whiteSpace: "pre-wrap"
-                      }}
-                    >
+                    <div style={{ whiteSpace: "pre-wrap" }}>
                       {question.answer}
                     </div>
                   </div>
