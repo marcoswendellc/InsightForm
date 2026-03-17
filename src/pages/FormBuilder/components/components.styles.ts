@@ -1,5 +1,19 @@
 import styled from "styled-components";
 
+const colors = {
+  primary: "#ED1C24",
+  primaryHover: "#D71920",
+  primarySoft: "#FDECEC",
+  text: "#1F2A37",
+  textSoft: "#6B7280",
+  border: "#E5E7EB",
+  borderSoft: "#EEF0F3",
+  bg: "#F6F7F9",
+  white: "#FFFFFF",
+  muted: "#F3F4F6",
+  danger: "#DC2626",
+};
+
 export const Bar = styled.aside`
   position: fixed;
   right: 24px;
@@ -10,54 +24,54 @@ export const Bar = styled.aside`
   flex-direction: column;
   gap: 10px;
 
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 18px;
+  background: ${colors.white};
+  border: 1px solid ${colors.border};
+  border-radius: 16px;
   padding: 12px;
 
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.22);
-  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
 `;
 
 export const Action = styled.button`
-  width: 46px;
-  height: 46px;
-  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
   border: none;
   cursor: pointer;
 
   display: grid;
   place-items: center;
 
-  background: rgba(0, 0, 0, 0.06);
+  background: ${colors.muted};
+  color: ${colors.textSoft};
 
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: all 0.18s ease;
 
   &:hover {
-    transform: scale(1.06);
-    background: rgba(0, 94, 255, 0.14);
-    color: #005eff;
+    transform: translateY(-1px);
+    background: ${colors.primarySoft};
+    color: ${colors.primary};
   }
 `;
 
 export const Divider = styled.div`
   height: 1px;
   width: 100%;
-  background: rgba(0, 0, 0, 0.12);
+  background: ${colors.border};
 `;
 
 export const SectionShell = styled.section`
-  background: #ffffff;
-  border: 2px solid transparent;
-  border-radius: 18px;
-  padding: 20px;
+  background: ${colors.white};
+  border: 1px solid ${colors.border};
+  border-radius: 20px;
+  padding: 24px;
 
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.05);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 
   &[data-active="true"] {
-    border-color: rgba(0, 94, 255, 0.65);
-    box-shadow: 0 12px 28px rgba(0, 94, 255, 0.12);
+    border-color: ${colors.primary};
+    box-shadow: 0 6px 18px rgba(237, 28, 36, 0.08);
   }
 `;
 
@@ -69,9 +83,10 @@ export const SectionTop = styled.div`
 
 export const SectionBadge = styled.div`
   font-size: 12px;
-  font-weight: 900;
-  letter-spacing: 0.2px;
-  color: rgba(0, 0, 0, 0.7);
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: ${colors.textSoft};
+  text-transform: uppercase;
 `;
 
 export const SectionRight = styled.div`
@@ -83,67 +98,87 @@ export const SectionRight = styled.div`
 export const DangerBtn = styled.button`
   border: none;
   cursor: pointer;
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 10px 12px;
 
-  background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
-  font-weight: 900;
+  background: rgba(220, 38, 38, 0.08);
+  color: ${colors.danger};
+  font-weight: 700;
+
+  transition: all 0.18s ease;
+
+  &:hover {
+    background: rgba(220, 38, 38, 0.14);
+  }
 `;
 
 export const Field = styled.input`
   width: 100%;
   margin-top: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid ${colors.border};
   border-radius: 14px;
-  padding: 12px 12px;
-  font-size: 14px;
-  background: #fff;
+  padding: 14px 16px;
+  font-size: 15px;
+  color: ${colors.text};
+  background: ${colors.white};
+
+  &::placeholder {
+    color: ${colors.textSoft};
+  }
 
   &:focus {
     outline: none;
-    border-color: #005eff;
+    border-color: ${colors.primary};
+    box-shadow: 0 0 0 3px rgba(237, 28, 36, 0.08);
   }
 
   &:disabled {
-    background: #f5f5f5;
+    background: ${colors.muted};
+    color: ${colors.text};
   }
 `;
 
 export const TextArea = styled.textarea`
   width: 100%;
   margin-top: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid ${colors.border};
   border-radius: 14px;
-  padding: 12px 12px;
+  padding: 14px 16px;
   resize: vertical;
-  min-height: 44px;
-  font-size: 14px;
-  background: #fff;
+  min-height: 100px;
+  font-size: 15px;
+  color: ${colors.text};
+  background: ${colors.white};
+
+  &::placeholder {
+    color: ${colors.textSoft};
+  }
 
   &:focus {
     outline: none;
-    border-color: #005eff;
+    border-color: ${colors.primary};
+    box-shadow: 0 0 0 3px rgba(237, 28, 36, 0.08);
   }
 
   &:disabled {
-    background: #f5f5f5;
+    background: ${colors.muted};
+    color: ${colors.text};
   }
 `;
 
 export const Helper = styled.div`
   margin-top: 8px;
   font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
-  line-height: 1.45;
+  color: ${colors.textSoft};
+  line-height: 1.5;
 `;
 
 export const QuestionShell = styled.div`
   margin-top: 22px;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid ${colors.borderSoft};
   border-radius: 16px;
-  padding: 16px;
-  background: #fff;
+  padding: 18px;
+  background: ${colors.white};
 `;
 
 export const QuestionTop = styled.div`
@@ -183,18 +218,19 @@ export const Row = styled.div`
 
 export const Pill = styled.span`
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.06);
+  background: ${colors.muted};
+  color: ${colors.textSoft};
 
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
 
   &[data-req="true"] {
-    background: rgba(0, 94, 255, 0.14);
-    color: #005eff;
+    background: ${colors.primarySoft};
+    color: ${colors.primary};
   }
 `;
 
@@ -202,20 +238,21 @@ export const OptRow = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 10px;
 `;
 
 export const OptInput = styled.input`
   flex: 1;
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid ${colors.border};
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   font-size: 14px;
-  background: #fff;
+  background: ${colors.white};
+  color: ${colors.text};
 
   &:focus {
     outline: none;
-    border-color: #005eff;
+    border-color: ${colors.primary};
   }
 
   &:disabled {
@@ -223,7 +260,7 @@ export const OptInput = styled.input`
     border: none;
     padding: 0;
     border-radius: 0;
-    color: rgba(0, 0, 0, 0.84);
+    color: ${colors.text};
   }
 `;
 
@@ -231,14 +268,17 @@ export const Btn = styled.button`
   border: none;
   cursor: pointer;
   border-radius: 14px;
-  padding: 10px 12px;
+  padding: 12px 16px;
 
-  background: rgba(0, 0, 0, 0.06);
-  font-weight: 900;
+  background: ${colors.muted};
+  color: ${colors.text};
+  font-weight: 700;
+
+  transition: all 0.18s ease;
 
   &:hover {
-    background: rgba(0, 94, 255, 0.12);
-    color: #005eff;
+    background: ${colors.primarySoft};
+    color: ${colors.primary};
   }
 `;
 
@@ -248,19 +288,20 @@ export const MiniBtn = styled.button`
   border-radius: 12px;
   padding: 8px 10px;
 
-  background: rgba(0, 0, 0, 0.06);
-  font-weight: 900;
+  background: ${colors.muted};
+  color: ${colors.text};
+  font-weight: 700;
 
   &[data-danger="true"] {
-    background: rgba(220, 38, 38, 0.12);
-    color: #dc2626;
+    background: rgba(220, 38, 38, 0.08);
+    color: ${colors.danger};
   }
 `;
 
 export const Footer = styled.div`
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid ${colors.border};
 
   display: flex;
   justify-content: flex-end;
@@ -282,14 +323,14 @@ export const IconDangerBtn = styled.button`
   display: grid;
   place-items: center;
 
-  background: rgba(220, 38, 38, 0.12);
-  color: #dc2626;
+  background: rgba(220, 38, 38, 0.08);
+  color: ${colors.danger};
 
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: all 0.18s ease;
 
   &:hover {
-    transform: scale(1.06);
-    background: rgba(220, 38, 38, 0.18);
+    transform: translateY(-1px);
+    background: rgba(220, 38, 38, 0.14);
   }
 `;
 
@@ -301,7 +342,7 @@ export const ToggleWrap = styled.div`
 
 export const ToggleLabel = styled.div`
   font-size: 13px;
-  color: rgba(0, 0, 0, 0.7);
+  color: ${colors.textSoft};
   font-weight: 600;
 `;
 
@@ -319,11 +360,11 @@ export const ToggleSwitch = styled.div`
   border-radius: 999px;
   position: relative;
 
-  background: rgba(0, 0, 0, 0.18);
+  background: #d1d5db;
   transition: background 0.2s ease;
 
   &[data-on="true"] {
-    background: rgba(124, 58, 237, 0.65);
+    background: rgba(237, 28, 36, 0.45);
   }
 `;
 
@@ -346,16 +387,17 @@ export const ToggleKnob = styled.div`
 export const QuestionsBlock = styled.div`
   margin-top: 28px;
   padding-top: 20px;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  border-top: 1px solid ${colors.border};
 `;
 
 export const TypeSelect = styled.select`
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid ${colors.border};
+  background: ${colors.white};
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 8px 12px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 800;
+  color: ${colors.text};
   outline: none;
   cursor: pointer;
 
@@ -364,18 +406,19 @@ export const TypeSelect = styled.select`
   -moz-appearance: none;
 
   &:focus {
-    border-color: rgba(0, 94, 255, 0.5);
+    border-color: ${colors.primary};
   }
 `;
 
 export const GoToSelect = styled.select`
-  height: 34px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-  background: rgba(0, 0, 0, 0.04);
+  height: 36px;
+  border: 1px solid ${colors.border};
+  background: ${colors.white};
   border-radius: 12px;
   padding: 0 10px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
+  color: ${colors.text};
   outline: none;
   cursor: pointer;
 
@@ -384,7 +427,7 @@ export const GoToSelect = styled.select`
   -moz-appearance: none;
 
   &:focus {
-    border-color: rgba(0, 94, 255, 0.5);
+    border-color: ${colors.primary};
   }
 
   &:disabled {
@@ -396,17 +439,18 @@ export const GoToSelect = styled.select`
 export const OtherInput = styled.input`
   flex: 1;
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.35);
+  border-bottom: 1px solid #c7cdd4;
   background: transparent;
   padding: 6px 4px;
   outline: none;
   font-size: 14px;
+  color: ${colors.text};
 
   &:disabled {
     opacity: 1;
   }
 
   &:focus {
-    border-bottom-color: #673ab7;
+    border-bottom-color: ${colors.primary};
   }
 `;

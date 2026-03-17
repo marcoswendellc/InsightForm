@@ -1,13 +1,24 @@
 import styled from "styled-components";
 
+const colors = {
+  primary: "#ED1C24",
+  primarySoft: "#FDECEC",
+  text: "#1F2A37",
+  textSoft: "#6B7280",
+  border: "#E5E7EB",
+  bg: "#F7F8FA",
+  white: "#FFFFFF",
+  muted: "#F3F4F6",
+};
+
 export const Page = styled.div`
   min-height: calc(100vh - 64px);
   padding: 24px;
-  background: #f4f6f8;
+  background: ${colors.bg};
   transition: background 0.2s ease;
 
   &[data-preview="true"] {
-    background: #f0ebf8;
+    background: ${colors.bg};
   }
 
   @media (max-width: 768px) {
@@ -16,24 +27,25 @@ export const Page = styled.div`
 `;
 
 export const Center = styled.div`
-  max-width: 980px;
+  max-width: 1080px;
   margin: 0 auto;
 
   &[data-preview="true"] {
-    max-width: 760px;
+    max-width: 860px;
   }
 `;
 
 export const Header = styled.header`
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 16px;
+  background: ${colors.white};
+  border: 1px solid ${colors.border};
+  border-radius: 18px;
+  padding: 18px 20px;
 
   display: flex;
   align-items: center;
   gap: 16px;
 
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -46,13 +58,14 @@ export const TitleInput = styled.input`
   border: none;
   outline: none;
 
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.2;
   background: transparent;
-  color: #202124;
+  color: ${colors.text};
 
   &::placeholder {
-    color: rgba(0, 0, 0, 0.4);
+    color: #9ca3af;
   }
 
   &:disabled {
@@ -63,9 +76,9 @@ export const TitleInput = styled.input`
 
 export const Subtle = styled.div`
   margin-top: 6px;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.55);
-  line-height: 1.4;
+  font-size: 13px;
+  color: ${colors.textSoft};
+  line-height: 1.45;
 `;
 
 export const Actions = styled.div`
@@ -86,20 +99,20 @@ export const IconBtn = styled.button`
   align-items: center;
   justify-content: center;
 
-  background: rgba(0, 0, 0, 0.06);
-  color: #333;
+  background: ${colors.muted};
+  color: ${colors.textSoft};
 
   transition: all 0.2s ease;
 
   &[data-active="true"] {
-    background: rgba(103, 58, 183, 0.14);
-    color: #673ab7;
+    background: ${colors.primarySoft};
+    color: ${colors.primary};
   }
 
   &:hover:not(:disabled) {
-    background: rgba(103, 58, 183, 0.12);
-    color: #673ab7;
-    transform: scale(1.05);
+    background: ${colors.primarySoft};
+    color: ${colors.primary};
+    transform: translateY(-1px);
   }
 
   &:disabled {
@@ -109,13 +122,13 @@ export const IconBtn = styled.button`
 `;
 
 export const Body = styled.div`
-  margin-top: 20px;
+  margin-top: 24px;
 
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 
   &[data-preview="true"] {
-    gap: 12px;
+    gap: 14px;
   }
 `;
