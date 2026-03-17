@@ -6,6 +6,9 @@ import {
   RequiredMark,
   PreviewTextInput,
   PreviewDateInput,
+  PreviewDateTimeRow,
+  PreviewDateTimeField,
+  PreviewDateTimeLabel,
   PreviewOptionsList,
   PreviewOptionRow,
   PreviewOtherWrap,
@@ -20,11 +23,38 @@ type Props = {
   onChange: (value: string | string[]) => void;
 };
 
-export default function QuestionPreview({ question, value, error, onChange }: Props) {
+function getDatePart(value?: string | string[]) {
+  if (typeof value !== "string") return "";
+  if (!value) return "";
+  return value.includes("T") ? value.split("T")[0] : value;
+}
+
+function getTimePart(value?: string | string[]) {
+  if (typeof value !== "string") return "";
+  if (!value || !value.includes("T")) return "";
+  return value.split("T")[1]?.slice(0, 5) ?? "";
+}
+
+function buildDateTime(date: string, time: string) {
+  if (!date && !time) return "";
+  if (!date) return "";
+  if (!time) return date;
+  return `${date}T${time}`;
+}
+
+export default function QuestionPreview({
+  question,
+  value,
+  error,
+  onChange
+}: Props) {
   const optionName = useMemo(() => `preview_${question.id}`, [question.id]);
 
   const selectedCheckboxes = Array.isArray(value) ? value : [];
   const selectedRadio = typeof value === "string" ? value : "";
+
+  const dateValue = getDatePart(value);
+  const timeValue = getTimePart(value);
 
   const toggleCheckbox = (optionId: string) => {
     if (!Array.isArray(value)) {
@@ -57,13 +87,37 @@ export default function QuestionPreview({ question, value, error, onChange }: Pr
         />
       )}
 
-      {question.type === "date" && (
+      {question.type === "date" && !question.includeTime && (
         <PreviewDateInput
           type="date"
-          value={typeof value === "string" ? value : ""}
+          value={typeof value === "string" ? getDatePart(value) : ""}
           onChange={(e) => onChange(e.target.value)}
           data-error={error ? "true" : "false"}
         />
+      )}
+
+      {question.type === "date" && question.includeTime && (
+        <PreviewDateTimeRow>
+          <PreviewDateTimeField>
+            <PreviewDateTimeLabel>Data</PreviewDateTimeLabel>
+            <PreviewDateInput
+              type="date"
+              value={dateValue}
+              onChange={(e) => onChange(buildDateTime(e.target.value, timeValue))}
+              data-error={error ? "true" : "false"}
+            />
+          </PreviewDateTimeField>
+
+          <PreviewDateTimeField>
+            <PreviewDateTimeLabel>Hora</PreviewDateTimeLabel>
+            <PreviewDateInput
+              type="time"
+              value={timeValue}
+              onChange={(e) => onChange(buildDateTime(dateValue, e.target.value))}
+              data-error={error ? "true" : "false"}
+            />
+          </PreviewDateTimeField>
+        </PreviewDateTimeRow>
       )}
 
       {question.type === "multipleChoice" && (

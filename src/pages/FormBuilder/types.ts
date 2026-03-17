@@ -21,6 +21,7 @@ export type Question = {
   required: boolean;
   options?: Option[];
   jumpEnabled?: boolean;
+  includeTime?: boolean;
 };
 
 export type Section = {
@@ -60,7 +61,8 @@ export const createQuestion = (type: QuestionType): Question => {
     label: "",
     required: false,
     options: isOptions ? [createOption("Opção 1")] : undefined,
-    jumpEnabled: type === "multipleChoice" ? false : undefined
+    jumpEnabled: type === "multipleChoice" ? false : undefined,
+    includeTime: type === "date" ? false : undefined
   };
 };
 

@@ -36,6 +36,7 @@ type Props = {
     required?: boolean;
     type?: QuestionType;
     jumpEnabled?: boolean;
+    includeTime?: boolean;
   }) => void;
 
   onAddOption: () => void;
@@ -84,22 +85,29 @@ export default function QuestionCard({
 
   const canHaveJump = isBuilder && question.type === "multipleChoice";
   const showJump = question.type === "multipleChoice" && !!question.jumpEnabled;
+  const isDate = question.type === "date";
 
   return (
     <QuestionShell>
-      {/* TOPO */}
       {isBuilder && (
         <QuestionTop>
           <QuestionMeta>
             <LeftMeta>
               <TypeSelect
                 value={question.type}
-                onChange={(e) => onUpdate({ type: e.target.value as QuestionType })}
+                onChange={(e) => {
+                  const nextType = e.target.value as QuestionType;
+
+                  onUpdate({
+                    type: nextType,
+                    ...(nextType !== "date" ? { includeTime: false } : {})
+                  });
+                }}
               >
-                <option value="text">texto</option>
-                <option value="multipleChoice">múltipla escolha</option>
-                <option value="checkbox">checkbox</option>
-                <option value="date">data</option>
+                <option value="text">Resposta Curta</option>
+                <option value="multipleChoice">Múltipla escolha</option>
+                <option value="checkbox">Caixas de seleção</option>
+                <option value="date">Data</option>
               </TypeSelect>
             </LeftMeta>
 
@@ -132,7 +140,6 @@ export default function QuestionCard({
         </div>
       )}
 
-      {/* PREVIEW DO INPUT / RESPOSTA */}
       <div style={{ marginTop: isBuilder ? 10 : 0 }}>
         {question.type === "text" && (
           <input
@@ -151,7 +158,7 @@ export default function QuestionCard({
           />
         )}
 
-        {question.type === "date" && (
+        {question.type === "date" && !question.includeTime && (
           <input
             type="date"
             disabled={!isPreview}
@@ -165,6 +172,71 @@ export default function QuestionCard({
               fontSize: 14
             }}
           />
+        )}
+
+        {question.type === "date" && question.includeTime && (
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              alignItems: "flex-end",
+              flexWrap: "wrap"
+            }}
+          >
+            <div style={{ flex: "1 1 220px", minWidth: 180 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  marginBottom: 6,
+                  color: "rgba(0,0,0,0.6)",
+                  fontWeight: 600
+                }}
+              >
+                Data
+              </div>
+
+              <input
+                type="date"
+                disabled={!isPreview}
+                style={{
+                  width: "100%",
+                  padding: "10px 0",
+                  border: "none",
+                  borderBottom: "1px solid rgba(0,0,0,0.24)",
+                  background: "transparent",
+                  outline: "none",
+                  fontSize: 14
+                }}
+              />
+            </div>
+
+            <div style={{ flex: "1 1 160px", minWidth: 140 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  marginBottom: 6,
+                  color: "rgba(0,0,0,0.6)",
+                  fontWeight: 600
+                }}
+              >
+                Hora
+              </div>
+
+              <input
+                type="time"
+                disabled={!isPreview}
+                style={{
+                  width: "100%",
+                  padding: "10px 0",
+                  border: "none",
+                  borderBottom: "1px solid rgba(0,0,0,0.24)",
+                  background: "transparent",
+                  outline: "none",
+                  fontSize: 14
+                }}
+              />
+            </div>
+          </div>
         )}
 
         {isOptions && (
@@ -238,7 +310,6 @@ export default function QuestionCard({
         )}
       </div>
 
-      {/* FOOTER */}
       {isBuilder && (
         <Footer>
           <IconDangerBtn title="Remover pergunta" onClick={onRemove}>
@@ -257,6 +328,22 @@ export default function QuestionCard({
 
               <ToggleSwitch data-on={question.jumpEnabled ? "true" : "false"}>
                 <ToggleKnob data-on={question.jumpEnabled ? "true" : "false"} />
+              </ToggleSwitch>
+            </ToggleWrap>
+          )}
+
+          {isDate && (
+            <ToggleWrap as="label" style={{ cursor: "pointer" }}>
+              <ToggleLabel>Incluir hora</ToggleLabel>
+
+              <ToggleInput
+                type="checkbox"
+                checked={!!question.includeTime}
+                onChange={() => onUpdate({ includeTime: !question.includeTime })}
+              />
+
+              <ToggleSwitch data-on={question.includeTime ? "true" : "false"}>
+                <ToggleKnob data-on={question.includeTime ? "true" : "false"} />
               </ToggleSwitch>
             </ToggleWrap>
           )}

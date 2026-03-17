@@ -129,6 +129,7 @@ export function useFormBuilder() {
           required: boolean;
           type: QuestionType;
           jumpEnabled: boolean;
+          includeTime: boolean;
         }>
       ) => {
         dispatch({ type: "UPDATE_QUESTION", sectionId, questionId, data });

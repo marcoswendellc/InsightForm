@@ -143,3 +143,24 @@ export const PreviewErrorText = styled.div`
   font-weight: 500;
   color: #d93025;
 `;
+export const PreviewDateTimeRow = styled.div`
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+`;
+
+export const PreviewDateTimeField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  flex: 1 1 220px;
+  min-width: 160px;
+`;
+
+export const PreviewDateTimeLabel = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: #5f6368;
+`;

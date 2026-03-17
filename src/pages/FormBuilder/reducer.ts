@@ -43,6 +43,7 @@ export type Action =
         required: boolean;
         type: QuestionType;
         jumpEnabled: boolean;
+        includeTime: boolean;
       }>;
     }
   | { type: "ADD_OPTION"; sectionId: string; questionId: string }
@@ -113,7 +114,18 @@ function normalizeQuestionOnTypeChange(
       type: nextType,
       options: ensureOtherLast(nextOptions),
       jumpEnabled:
-        nextType === "multipleChoice" ? question.jumpEnabled ?? false : undefined
+        nextType === "multipleChoice" ? question.jumpEnabled ?? false : undefined,
+      includeTime: undefined
+    };
+  }
+
+  if (nextType === "date") {
+    return {
+      ...question,
+      type: nextType,
+      options: undefined,
+      jumpEnabled: undefined,
+      includeTime: question.includeTime ?? false
     };
   }
 
@@ -121,7 +133,8 @@ function normalizeQuestionOnTypeChange(
     ...question,
     type: nextType,
     options: undefined,
-    jumpEnabled: undefined
+    jumpEnabled: undefined,
+    includeTime: undefined
   };
 }
 
@@ -321,7 +334,22 @@ export function reducer(state: State, action: Action): State {
                   }
                 }
 
-                const { type, jumpEnabled, ...rest } = action.data as any;
+                if (typeof action.data.includeTime === "boolean") {
+                  nextQuestion = {
+                    ...nextQuestion,
+                    includeTime:
+                      nextQuestion.type === "date"
+                        ? action.data.includeTime
+                        : undefined
+                  };
+                }
+
+                const {
+                  type,
+                  jumpEnabled,
+                  includeTime,
+                  ...rest
+                } = action.data as any;
 
                 return {
                   ...nextQuestion,
