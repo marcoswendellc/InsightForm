@@ -6,9 +6,7 @@ export const Page = styled.div`
   place-items: center;
   padding: 18px;
   background:
-    radial-gradient(1200px 800px at 20% -10%, rgba(0,94,255,0.45), transparent 55%),
-    radial-gradient(1000px 800px at 110% 0%, rgba(255,92,0,0.20), transparent 55%),
-    #0b0f1a;
+    radial-gradient(1200px 800px, #db1f26)
 `;
 
 export const Card = styled.div`
@@ -51,7 +49,7 @@ export const Btn = styled.button`
   cursor: pointer;
   font-weight: 900;
   color: #fff;
-  background: #005eff;
+  background: #f89c1c;
   padding: 12px 14px;
   border-radius: 14px;
 `;

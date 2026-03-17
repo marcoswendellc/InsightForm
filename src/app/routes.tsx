@@ -1,8 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 
 import LoginPage from "../pages/Login/LoginPage";
-import FormsPage from "../pages/Forms/FormsPage";
-import BriefingPage from "../pages/Briefing/BriefingPage";
 import FormBuilderPage from "../pages/FormBuilder/FormBuilderPage";
 
 import { ProtectedRoute } from "../auth/ProtectedRoute";
@@ -14,26 +12,27 @@ export function AppRoutes() {
       {/* Público */}
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Alias PT-BR */}
-      <Route path="/formularios" element={<Navigate to="/forms" replace />} />
+      {/* Aliases */}
+      <Route path="/formularios" element={<Navigate to="/builder" replace />} />
       <Route path="/formulario" element={<Navigate to="/builder" replace />} />
+      <Route path="/forms" element={<Navigate to="/builder" replace />} />
+      <Route path="/briefing" element={<Navigate to="/builder" replace />} />
 
       {/* Privado */}
       <Route
+        path="/"
         element={
           <ProtectedRoute>
             <MainLayout />
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/briefing" replace />} />
-        <Route path="briefing" element={<BriefingPage />} />
-        <Route path="forms" element={<FormsPage />} />
+        <Route index element={<Navigate to="/builder" replace />} />
         <Route path="builder" element={<FormBuilderPage />} />
       </Route>
 
-      {/* Qualquer coisa desconhecida */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Qualquer rota desconhecida vai para /builder */}
+      <Route path="*" element={<Navigate to="/builder" replace />} />
     </Routes>
   );
 }
