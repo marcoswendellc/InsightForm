@@ -2,86 +2,145 @@ import styled from "styled-components";
 
 export const Layout = styled.div`
   min-height: 100vh;
-  background:
-    radial-gradient(1200px 800px at 20% -10%, rgba(0,94,255,0.35), transparent 55%),
-    radial-gradient(1000px 800px at 110% 0%, rgba(255,92,0,0.20), transparent 55%),
-    #0b0f1a;
+  background: #f3f4f6;
 `;
 
 export const Topbar = styled.header`
-  height: 68px;
+  height: 88px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 18px;
-  color: #fff;
+  padding: 0 28px;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
   position: sticky;
   top: 0;
-  backdrop-filter: blur(12px);
-  background: rgba(11, 15, 26, 0.6);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  z-index: 20;
+
+  @media (max-width: 768px) {
+    height: auto;
+    min-height: 72px;
+    padding: 14px 16px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
 `;
 
 export const Brand = styled.div`
-  font-weight: 900;
-  letter-spacing: 0.3px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+`;
+
+export const BrandMark = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 18px;
+  border-right: 1px solid #e5e7eb;
+  flex-shrink: 0;
+`;
+
+export const BrandText = styled.div`
+  min-width: 0;
+`;
+
+export const BrandTitle = styled.div`
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+  line-height: 1.2;
+`;
+
+export const BrandSubtitle = styled.div`
+  margin-top: 2px;
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  @media (max-width: 768px) {
+    white-space: normal;
+  }
 `;
 
 export const Nav = styled.nav`
   display: flex;
+  align-items: center;
   gap: 10px;
 `;
 
 export const NavItem = styled.a`
   display: flex;
   align-items: center;
-
-  width: 100%;
-  min-width: 0;                 /* ✅ importantíssimo em layout flex */
-  padding: 10px 12px;
+  min-width: 0;
+  padding: 10px 14px;
   border-radius: 12px;
-
-  color: rgba(255,255,255,0.85);
   text-decoration: none;
+  color: #6b7280;
+  font-weight: 600;
+  transition: all 0.18s ease;
 
-  white-space: nowrap;          /* ✅ não quebrar linha */
-  overflow: hidden;             /* ✅ evita vazar */
-  text-overflow: ellipsis;      /* ✅ coloca ... quando precisar */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
-  &.active{
-    color: #fff;
-    background: rgba(0,94,255,0.22);
-    border: 1px solid rgba(0,94,255,0.35);
+  &:hover {
+    background: #f9fafb;
+    color: #111827;
+  }
+
+  &.active {
+    background: rgba(239, 68, 68, 0.08);
+    color: #dc2626;
   }
 `;
-
-
 
 export const Right = styled.div`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  flex-shrink: 0;
+
+  @media (max-width: 768px) {
+    width: 100%;
+    justify-content: flex-end;
+  }
 `;
 
 export const Chip = styled.div`
-  padding: 8px 10px;
+  padding: 9px 14px;
   border-radius: 999px;
-  font-size: 12px;
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.10);
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
 `;
 
 export const Btn = styled.button`
-  border: none;
+  border: 1px solid #e5e7eb;
   cursor: pointer;
-  color: #fff;
+  color: #374151;
   font-weight: 700;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.12);
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  transition: all 0.18s ease;
+
+  &:hover {
+    background: #f9fafb;
+    border-color: #d1d5db;
+  }
 `;
 
 export const Content = styled.main`
-  padding: 18px;
+  padding: 24px 28px;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
 `;
