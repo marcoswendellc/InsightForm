@@ -256,16 +256,11 @@ export default function FormResponsePrintPage({ form }: Props) {
         return {
           id: section.id,
           title: section.title,
-          description: section.description,
           printableQuestions
         };
       })
       .filter((section) => section.printableQuestions.length > 0);
   }, [form, responseData]);
-
-  const handlePrint = () => {
-    window.print();
-  };
 
   if (isLoading) {
     return <div style={{ padding: 24 }}>Carregando resposta para impressão...</div>;
@@ -301,10 +296,6 @@ export default function FormResponsePrintPage({ form }: Props) {
           }
 
           @media print {
-            .print-actions {
-              display: none !important;
-            }
-
             .print-doc {
               max-width: none !important;
               margin: 0 !important;
@@ -321,30 +312,6 @@ export default function FormResponsePrintPage({ form }: Props) {
       </style>
 
       <div
-        className="print-actions"
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          marginBottom: 24
-        }}
-      >
-        <button
-          onClick={handlePrint}
-          style={{
-            background: "#ED1C24",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            padding: "10px 16px",
-            fontWeight: 600,
-            cursor: "pointer"
-          }}
-        >
-          Imprimir / Salvar em PDF
-        </button>
-      </div>
-
-      <div
         className="print-doc"
         style={{
           maxWidth: 820,
@@ -352,15 +319,15 @@ export default function FormResponsePrintPage({ form }: Props) {
           background: "#fff",
           color: "#101828",
           fontFamily: '"Times New Roman", Georgia, serif',
-          fontSize: 12,
-          lineHeight: 1.7
+          fontSize: 13,
+          lineHeight: 1.8
         }}
       >
         <header style={{ marginBottom: 28 }}>
           <h1
             style={{
               margin: 0,
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: 700,
               lineHeight: 1.3
             }}
@@ -393,24 +360,12 @@ export default function FormResponsePrintPage({ form }: Props) {
               <h2
                 style={{
                   margin: "0 0 10px 0",
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: 700
                 }}
               >
                 {section.title || `Seção ${sectionIndex + 1}`}
               </h2>
-
-              {section.description ? (
-                <p
-                  style={{
-                    margin: "0 0 14px 0",
-                    color: "#444",
-                    lineHeight: 1.6
-                  }}
-                >
-                  {section.description}
-                </p>
-              ) : null}
 
               <div style={{ display: "grid", gap: 12 }}>
                 {section.printableQuestions.map((question) => (
