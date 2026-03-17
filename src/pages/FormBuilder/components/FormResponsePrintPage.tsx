@@ -302,10 +302,19 @@ export default function FormResponsePrintPage({ form }: Props) {
               padding: 0 !important;
             }
 
-            .print-section,
+            .print-section {
+              break-inside: auto;
+              page-break-inside: auto;
+            }
+
             .print-question {
-              break-inside: avoid;
-              page-break-inside: avoid;
+              break-inside: auto;
+              page-break-inside: auto;
+            }
+
+            .print-section-title {
+              break-after: avoid;
+              page-break-after: avoid;
             }
           }
         `}
@@ -355,19 +364,21 @@ export default function FormResponsePrintPage({ form }: Props) {
             <section
               key={section.id}
               className="print-section"
-              style={{ marginBottom: 26 }}
+              style={{ marginBottom: 22 }}
             >
               <h2
+                className="print-section-title"
                 style={{
                   margin: "0 0 10px 0",
-                  fontSize: 15,
-                  fontWeight: 700
+                  fontSize: 17,
+                  fontWeight: 700,
+                  lineHeight: 1.35
                 }}
               >
                 {section.title || `Seção ${sectionIndex + 1}`}
               </h2>
 
-              <div style={{ display: "grid", gap: 12 }}>
+              <div style={{ display: "grid", gap: 10 }}>
                 {section.printableQuestions.map((question) => (
                   <div key={question.id} className="print-question">
                     <div
