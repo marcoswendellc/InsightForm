@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Question } from "../types";
 import {
   PreviewQuestionShell,
@@ -76,8 +76,7 @@ function applyDateMaskFromDigits(digits: string) {
 }
 
 function normalizeDateInput(value: string) {
-  const safeDigits = sanitizeDateDigits(value);
-  return applyDateMaskFromDigits(safeDigits);
+  return applyDateMaskFromDigits(sanitizeDateDigits(value));
 }
 
 function parseMaskedDate(value: string) {
@@ -201,8 +200,7 @@ function DateTextInput({
     const selectedText = value.slice(selectionStart, selectionEnd);
     const selectedDigits = onlyDigits(selectedText);
 
-    const nextDigitsLength =
-      currentDigits.length - selectedDigits.length + 1;
+    const nextDigitsLength = currentDigits.length - selectedDigits.length + 1;
 
     if (nextDigitsLength > MAX_DATE_DIGITS) {
       e.preventDefault();
@@ -246,7 +244,12 @@ export default function QuestionPreview({
 
   const dateIsoValue = getDatePart(value);
   const timeValue = getTimePart(value);
-  const maskedDateValue = isoDateToMasked(value);
+
+  const [dateText, setDateText] = useState("");
+
+  useEffect(() => {
+    setDateText(isoDateToMasked(value));
+  }, [value]);
 
   const toggleCheckbox = (optionId: string) => {
     if (!Array.isArray(value)) {
@@ -263,13 +266,25 @@ export default function QuestionPreview({
   };
 
   function handleDateOnlyChange(maskedValue: string) {
+    setDateText(maskedValue);
+
     const isoDate = maskedDateToIso(maskedValue);
-    onChange(isoDate);
+    if (isoDate) {
+      onChange(isoDate);
+    } else if (!maskedValue) {
+      onChange("");
+    }
   }
 
   function handleDateWithTimeChange(maskedValue: string) {
+    setDateText(maskedValue);
+
     const isoDate = maskedDateToIso(maskedValue);
-    onChange(buildDateTime(isoDate, timeValue));
+    if (isoDate) {
+      onChange(buildDateTime(isoDate, timeValue));
+    } else if (!maskedValue) {
+      onChange("");
+    }
   }
 
   return (
@@ -291,7 +306,7 @@ export default function QuestionPreview({
 
       {question.type === "date" && !question.includeTime && (
         <DateTextInput
-          value={maskedDateValue}
+          value={dateText}
           error={error}
           onChange={handleDateOnlyChange}
         />
@@ -302,7 +317,7 @@ export default function QuestionPreview({
           <PreviewDateTimeField>
             <PreviewDateTimeLabel>Data</PreviewDateTimeLabel>
             <DateTextInput
-              value={maskedDateValue}
+              value={dateText}
               error={error}
               onChange={handleDateWithTimeChange}
             />
