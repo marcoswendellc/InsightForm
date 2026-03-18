@@ -46,6 +46,21 @@ type ListedResponse = {
   can_print?: boolean;
 };
 
+const listColors = {
+  primary: "#ED1C24",
+  primaryHover: "#D71920",
+  primarySoft: "rgba(237,28,36,0.08)",
+  primaryBorder: "rgba(237,28,36,0.25)",
+  primaryIconBg: "rgba(237,28,36,0.12)",
+  white: "#FFFFFF",
+  text: "#202124",
+  textSoft: "rgba(0,0,0,0.6)",
+  danger: "#d93025",
+  cardShadow: "0 10px 30px rgba(0,0,0,0.08)",
+  neutralBorder: "1px solid rgba(0,0,0,0.08)",
+  neutralButtonBorder: "1px solid rgba(0,0,0,0.12)"
+};
+
 function formatDate(value?: string) {
   if (!value) return "Sem data";
 
@@ -510,7 +525,7 @@ export default function FormBuilderPage() {
                 style={{
                   fontSize: 20,
                   fontWeight: 700,
-                  color: "#202124"
+                  color: listColors.text
                 }}
               >
                 Formulários
@@ -535,10 +550,10 @@ export default function FormBuilderPage() {
             {isLoadingForms ? (
               <div
                 style={{
-                  background: "#fff",
+                  background: listColors.white,
                   borderRadius: 16,
                   padding: 18,
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)"
+                  boxShadow: listColors.cardShadow
                 }}
               >
                 Carregando formulários...
@@ -546,11 +561,11 @@ export default function FormBuilderPage() {
             ) : formsError ? (
               <div
                 style={{
-                  background: "#fff",
+                  background: listColors.white,
                   borderRadius: 16,
                   padding: 18,
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
-                  color: "#d93025",
+                  boxShadow: listColors.cardShadow,
+                  color: listColors.danger,
                   fontWeight: 500
                 }}
               >
@@ -559,17 +574,17 @@ export default function FormBuilderPage() {
             ) : forms.length === 0 ? (
               <div
                 style={{
-                  background: "#fff",
+                  background: listColors.white,
                   borderRadius: 16,
                   padding: 18,
-                  boxShadow: "0 10px 30px rgba(0,0,0,0.08)"
+                  boxShadow: listColors.cardShadow
                 }}
               >
                 <div
                   style={{
                     fontSize: 16,
                     fontWeight: 600,
-                    color: "#202124"
+                    color: listColors.text
                   }}
                 >
                   Nenhum formulário encontrado
@@ -578,7 +593,7 @@ export default function FormBuilderPage() {
                 <div
                   style={{
                     marginTop: 8,
-                    color: "rgba(0,0,0,0.6)",
+                    color: listColors.textSoft,
                     lineHeight: 1.5
                   }}
                 >
@@ -607,10 +622,10 @@ export default function FormBuilderPage() {
                     <div
                       style={{
                         width: "100%",
-                        background: "#fff",
+                        background: listColors.white,
                         borderRadius: 16,
                         padding: 18,
-                        boxShadow: "0 10px 30px rgba(0,0,0,0.08)",
+                        boxShadow: listColors.cardShadow,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "space-between",
@@ -632,10 +647,10 @@ export default function FormBuilderPage() {
                             width: 42,
                             height: 42,
                             borderRadius: 12,
-                            background: "rgba(103,58,183,0.12)",
+                            background: listColors.primaryIconBg,
                             display: "grid",
                             placeItems: "center",
-                            color: "#673ab7"
+                            color: listColors.primary
                           }}
                         >
                           <FolderOpen size={20} weight="bold" />
@@ -646,7 +661,7 @@ export default function FormBuilderPage() {
                             style={{
                               fontSize: 16,
                               fontWeight: 700,
-                              color: "#202124"
+                              color: listColors.text
                             }}
                           >
                             {form.title || "Formulário sem título"}
@@ -656,7 +671,7 @@ export default function FormBuilderPage() {
                             style={{
                               marginTop: 4,
                               fontSize: 13,
-                              color: "rgba(0,0,0,0.6)"
+                              color: listColors.textSoft
                             }}
                           >
                             Atualizado em {formatDate(form.updated_at)}
@@ -678,7 +693,7 @@ export default function FormBuilderPage() {
                             border: "none",
                             borderRadius: 10,
                             padding: "10px 14px",
-                            background: "#673ab7",
+                            background: listColors.primary,
                             color: "#fff",
                             fontWeight: 700,
                             cursor: "pointer"
@@ -690,13 +705,13 @@ export default function FormBuilderPage() {
                         <button
                           onClick={() => handleToggleResponses(form.id)}
                           style={{
-                            border: "1px solid rgba(103,58,183,0.25)",
+                            border: `1px solid ${listColors.primaryBorder}`,
                             borderRadius: 10,
                             padding: "10px 14px",
                             background: isExpanded
-                              ? "rgba(103,58,183,0.08)"
+                              ? listColors.primarySoft
                               : "#fff",
-                            color: "#673ab7",
+                            color: listColors.primary,
                             fontWeight: 700,
                             cursor: "pointer",
                             display: "flex",
@@ -712,11 +727,11 @@ export default function FormBuilderPage() {
                           <button
                             onClick={() => handleEditForm(form.id)}
                             style={{
-                              border: "1px solid rgba(103,58,183,0.25)",
+                              border: `1px solid ${listColors.primaryBorder}`,
                               borderRadius: 10,
                               padding: "10px 14px",
                               background: "#fff",
-                              color: "#673ab7",
+                              color: listColors.primary,
                               fontWeight: 700,
                               cursor: "pointer"
                             }}
@@ -730,17 +745,17 @@ export default function FormBuilderPage() {
                     {isExpanded && (
                       <div
                         style={{
-                          background: "#fff",
+                          background: listColors.white,
                           borderRadius: 16,
                           padding: 18,
-                          boxShadow: "0 10px 30px rgba(0,0,0,0.08)"
+                          boxShadow: listColors.cardShadow
                         }}
                       >
                         <div
                           style={{
                             fontSize: 15,
                             fontWeight: 700,
-                            color: "#202124",
+                            color: listColors.text,
                             marginBottom: 12
                           }}
                         >
@@ -754,14 +769,14 @@ export default function FormBuilderPage() {
                         ) : responsesError ? (
                           <div
                             style={{
-                              color: "#d93025",
+                              color: listColors.danger,
                               fontWeight: 500
                             }}
                           >
                             {responsesError}
                           </div>
                         ) : responses.length === 0 ? (
-                          <div style={{ color: "rgba(0,0,0,0.6)" }}>
+                          <div style={{ color: listColors.textSoft }}>
                             Nenhuma resposta encontrada.
                           </div>
                         ) : (
@@ -776,7 +791,7 @@ export default function FormBuilderPage() {
                               <div
                                 key={response.id}
                                 style={{
-                                  border: "1px solid rgba(0,0,0,0.08)",
+                                  border: listColors.neutralBorder,
                                   borderRadius: 12,
                                   padding: 14,
                                   display: "flex",
@@ -799,7 +814,7 @@ export default function FormBuilderPage() {
                                     style={{
                                       fontSize: 15,
                                       fontWeight: 700,
-                                      color: "#202124"
+                                      color: listColors.text
                                     }}
                                   >
                                     {response.user_name || "Usuário sem nome"}
@@ -808,7 +823,7 @@ export default function FormBuilderPage() {
                                   <div
                                     style={{
                                       fontSize: 13,
-                                      color: "rgba(0,0,0,0.6)"
+                                      color: listColors.textSoft
                                     }}
                                   >
                                     Respondido em {formatDate(response.submitted_at)}
@@ -832,11 +847,11 @@ export default function FormBuilderPage() {
                                         )
                                       }
                                       style={{
-                                        border: "1px solid rgba(103,58,183,0.25)",
+                                        border: `1px solid ${listColors.primaryBorder}`,
                                         borderRadius: 10,
                                         padding: "9px 12px",
                                         background: "#fff",
-                                        color: "#673ab7",
+                                        color: listColors.primary,
                                         fontWeight: 700,
                                         cursor: "pointer",
                                         display: "flex",
@@ -859,11 +874,11 @@ export default function FormBuilderPage() {
                                         )
                                       }
                                       style={{
-                                        border: "1px solid rgba(0,0,0,0.12)",
+                                        border: listColors.neutralButtonBorder,
                                         borderRadius: 10,
                                         padding: "9px 12px",
                                         background: "#fff",
-                                        color: "#202124",
+                                        color: listColors.text,
                                         fontWeight: 700,
                                         cursor: "pointer",
                                         display: "flex",
@@ -934,13 +949,13 @@ export default function FormBuilderPage() {
               {isLoadingForm
                 ? "Carregando formulário..."
                 : loadFormError
-                ? loadFormError
-                : isRespond
-                ? "Preencha o formulário e envie suas respostas."
-                : isPreview
-                ? "Pré-visualização do formulário"
-                : saveMessage ||
-                  "Clique em uma seção para ativar e use o menu lateral para adicionar perguntas."}
+                  ? loadFormError
+                  : isRespond
+                    ? "Preencha o formulário e envie suas respostas."
+                    : isPreview
+                      ? "Pré-visualização do formulário"
+                      : saveMessage ||
+                        "Clique em uma seção para ativar e use o menu lateral para adicionar perguntas."}
             </Subtle>
           </div>
 
