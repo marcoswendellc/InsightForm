@@ -27,23 +27,23 @@ export default function FormResponsePrintRoute() {
   const { authHeader } = useAuth();
 
   const [form, setForm] = useState<FormDefinition | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   const formId = params.get("formId")?.trim() || "";
 
   useEffect(() => {
     if (!formId) {
-      setLoading(false);
-      setError("Formulário não informado.");
+      setIsLoading(false);
+      setLoadError("Formulário não informado.");
       return;
     }
 
     let cancelled = false;
 
-    const run = async () => {
-      setLoading(true);
-      setError("");
+    const loadForm = async () => {
+      setIsLoading(true);
+      setLoadError("");
 
       try {
         const response = await fetch(
@@ -58,41 +58,47 @@ export default function FormResponsePrintRoute() {
         const data = await parseJsonResponse(response);
 
         if (cancelled) return;
-
         setForm(data.form ?? null);
-      } catch (err) {
+      } catch (error) {
         if (cancelled) return;
 
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Erro ao carregar formulário para impressão."
+        setLoadError(
+          error instanceof Error
+            ? error.message
+            : "Erro ao carregar formulário para gerar PDF."
         );
       } finally {
         if (!cancelled) {
-          setLoading(false);
+          setIsLoading(false);
         }
       }
     };
 
-    run();
+    loadForm();
 
     return () => {
       cancelled = true;
     };
-  }, [formId, authHeader]);
+  }, [authHeader, formId]);
 
-  if (loading) {
+  if (isLoading) {
     return <div style={{ padding: 24 }}>Carregando formulário...</div>;
   }
 
-  if (error) {
-    return <div style={{ padding: 24, color: "#b42318" }}>{error}</div>;
+  if (loadError) {
+    return <div style={{ padding: 24, color: "#b42318" }}>{loadError}</div>;
   }
 
   if (!form) {
     return <div style={{ padding: 24 }}>Formulário não encontrado.</div>;
   }
 
-  return <FormResponsePrintPage form={form} />;
+  return (
+    <FormResponsePrintPage
+      form={form}
+      onDownloaded={() => {
+        // espaço para comportamento futuro após download
+      }}
+    />
+  );
 }

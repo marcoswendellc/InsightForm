@@ -505,18 +505,19 @@ export default function FormBuilderPage() {
     );
   };
 
+  //aqui
   const handleOpenResponsePdf = (
     targetFormId: string,
     responseId: string,
     canPrint = true
-  ) => {
+    ) => {
     if (!targetFormId.trim() || !responseId.trim() || !canPrint) return;
 
     const url =
       `/response-print?formId=${encodeURIComponent(targetFormId)}` +
       `&responseId=${encodeURIComponent(responseId)}`;
 
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.location.href = url;
   };
 
   const handleAddQuestion = (type: QuestionType) => {

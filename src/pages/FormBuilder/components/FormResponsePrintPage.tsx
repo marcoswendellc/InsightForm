@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthContext";
 import type { FormDefinition } from "../types";
+import html2pdf from "html2pdf.js";
 
 type Props = {
   form: FormDefinition;
+  onDownloaded?: () => void;
 };
 
 type ResponseData = {
@@ -16,6 +18,18 @@ type ResponseData = {
   respondent_name?: string;
   respondent_email?: string;
   answers?: Record<string, string | string[]>;
+};
+
+type PrintableQuestion = {
+  id: string;
+  label?: string;
+  answer: string;
+};
+
+type PrintableSection = {
+  id: string;
+  title?: string;
+  printableQuestions: PrintableQuestion[];
 };
 
 async function parseJsonResponse(response: Response) {
@@ -151,13 +165,64 @@ function getAnswerLabel(params: {
   return normalizeAnswerValue(value);
 }
 
-export default function FormResponsePrintPage({ form }: Props) {
+function sanitizeFileName(name: string) {
+  return (
+    name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+      .replace(/\s+/g, " ")
+      .trim() || "formulario"
+  );
+}
+
+function buildPrintableSections(
+  form: FormDefinition,
+  responseData: ResponseData | null
+): PrintableSection[] {
+  const answers = responseData?.answers ?? {};
+
+  return form.sections
+    .map((section) => {
+      const printableQuestions = section.questions
+        .filter((question) =>
+          hasMeaningfulAnswer(question.type, answers[question.id], question.options)
+        )
+        .map((question) => ({
+          id: question.id,
+          label: question.label,
+          answer: getAnswerLabel({
+            questionType: question.type,
+            value: answers[question.id],
+            options: question.options
+          })
+        }))
+        .filter((question) => question.answer.trim() !== "");
+
+      return {
+        id: section.id,
+        title: section.title,
+        printableQuestions
+      };
+    })
+    .filter((section) => section.printableQuestions.length > 0);
+}
+
+function getPdfFileName(form: FormDefinition, responseData: ResponseData | null) {
+  return `${sanitizeFileName(
+    form.title || responseData?.form_title || "formulario"
+  )}.pdf`;
+}
+
+export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
   const [params] = useSearchParams();
   const { authHeader } = useAuth();
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   const [responseData, setResponseData] = useState<ResponseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const responseId = params.get("responseId")?.trim() || "";
 
@@ -171,13 +236,11 @@ export default function FormResponsePrintPage({ form }: Props) {
       return;
     }
 
-    if (!currentFormId) {
-      return;
-    }
+    if (!currentFormId) return;
 
     let cancelled = false;
 
-    const run = async () => {
+    const loadResponse = async () => {
       setIsLoading(true);
       setLoadError("");
 
@@ -196,17 +259,15 @@ export default function FormResponsePrintPage({ form }: Props) {
         const data = await parseJsonResponse(response);
 
         if (cancelled) return;
-
         setResponseData(data.response ?? null);
       } catch (error) {
         if (cancelled) return;
 
-        const message =
+        setLoadError(
           error instanceof Error
             ? error.message
-            : "Erro ao carregar resposta para impressão.";
-
-        setLoadError(message);
+            : "Erro ao carregar resposta para impressão."
+        );
       } finally {
         if (!cancelled) {
           setIsLoading(false);
@@ -214,12 +275,12 @@ export default function FormResponsePrintPage({ form }: Props) {
       }
     };
 
-    run();
+    loadResponse();
 
     return () => {
       cancelled = true;
     };
-  }, [form.id, responseId, authHeader]);
+  }, [authHeader, form.id, responseId]);
 
   const respondentLabel = useMemo(() => {
     return (
@@ -230,40 +291,70 @@ export default function FormResponsePrintPage({ form }: Props) {
   }, [responseData]);
 
   const printableSections = useMemo(() => {
-    const answers = responseData?.answers ?? {};
-
-    return form.sections
-      .map((section) => {
-        const printableQuestions = section.questions
-          .filter((question) =>
-            hasMeaningfulAnswer(
-              question.type,
-              answers[question.id],
-              question.options
-            )
-          )
-          .map((question) => ({
-            id: question.id,
-            label: question.label,
-            answer: getAnswerLabel({
-              questionType: question.type,
-              value: answers[question.id],
-              options: question.options
-            })
-          }))
-          .filter((question) => question.answer.trim() !== "");
-
-        return {
-          id: section.id,
-          title: section.title,
-          printableQuestions
-        };
-      })
-      .filter((section) => section.printableQuestions.length > 0);
+    return buildPrintableSections(form, responseData);
   }, [form, responseData]);
 
+  useEffect(() => {
+    if (isLoading || loadError || !responseData || isGeneratingPdf) return;
+
+    let cancelled = false;
+
+    const generatePdf = async () => {
+      const element = contentRef.current;
+      if (!element) return;
+
+      try {
+        setIsGeneratingPdf(true);
+
+        const options = {
+          margin: [12, 12, 12, 12] as [number, number, number, number],
+          filename: getPdfFileName(form, responseData),
+          image: { type: "jpeg" as const, quality: 0.98 },
+          html2canvas: {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff"
+          },
+          jsPDF: {
+            unit: "mm",
+            format: "a4",
+            orientation: "portrait" as "portrait"
+          },
+          pagebreak: {
+            mode: ["css", "legacy"]
+          }
+        };
+
+        await html2pdf().set(options).from(element).save();
+
+        if (!cancelled) {
+          onDownloaded?.();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setLoadError(
+            error instanceof Error ? error.message : "Erro ao gerar o PDF."
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsGeneratingPdf(false);
+        }
+      }
+    };
+
+    const timer = window.setTimeout(() => {
+      generatePdf();
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [form, isGeneratingPdf, isLoading, loadError, onDownloaded, responseData]);
+
   if (isLoading) {
-    return <div style={{ padding: 24 }}>Carregando resposta para impressão...</div>;
+    return <div style={{ padding: 24 }}>Carregando resposta para gerar PDF...</div>;
   }
 
   if (loadError) {
@@ -277,50 +368,19 @@ export default function FormResponsePrintPage({ form }: Props) {
   if (!responseData) {
     return (
       <div style={{ padding: 24, color: "#667085" }}>
-        Nenhuma resposta encontrada para impressão.
+        Nenhuma resposta encontrada para gerar PDF.
       </div>
     );
   }
 
   return (
-    <div>
-      <style>
-        {`
-          @page {
-            size: A4;
-            margin: 20mm 18mm;
-          }
-
-          html, body {
-            background: #fff;
-          }
-
-          @media print {
-            .print-doc {
-              max-width: none !important;
-              margin: 0 !important;
-              padding: 0 !important;
-            }
-
-            .print-section {
-              break-inside: auto;
-              page-break-inside: auto;
-            }
-
-            .print-question {
-              break-inside: auto;
-              page-break-inside: auto;
-            }
-
-            .print-section-title {
-              break-after: avoid;
-              page-break-after: avoid;
-            }
-          }
-        `}
-      </style>
+    <div style={{ padding: 24 }}>
+      <div style={{ marginBottom: 16, color: "#475467", fontWeight: 600 }}>
+        {isGeneratingPdf ? "Gerando PDF..." : "Preparando download..."}
+      </div>
 
       <div
+        ref={contentRef}
         className="print-doc"
         style={{
           maxWidth: 820,
@@ -329,7 +389,8 @@ export default function FormResponsePrintPage({ form }: Props) {
           color: "#101828",
           fontFamily: '"Times New Roman", Georgia, serif',
           fontSize: 13,
-          lineHeight: 1.8
+          lineHeight: 1.8,
+          padding: 24
         }}
       >
         <header style={{ marginBottom: 28 }}>
@@ -367,7 +428,6 @@ export default function FormResponsePrintPage({ form }: Props) {
               style={{ marginBottom: 22 }}
             >
               <h2
-                className="print-section-title"
                 style={{
                   margin: "0 0 10px 0",
                   fontSize: 17,
@@ -390,9 +450,7 @@ export default function FormResponsePrintPage({ form }: Props) {
                       {question.label || "Pergunta sem título"}
                     </div>
 
-                    <div style={{ whiteSpace: "pre-wrap" }}>
-                      {question.answer}
-                    </div>
+                    <div style={{ whiteSpace: "pre-wrap" }}>{question.answer}</div>
                   </div>
                 ))}
               </div>
