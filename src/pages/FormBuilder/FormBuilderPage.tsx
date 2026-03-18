@@ -1102,6 +1102,7 @@ export default function FormBuilderPage() {
         canShow={canShowToolbar}
         onAddSection={actions.addSection}
         onAddQuestion={handleAddQuestion}
+        onSave={handleSave}
       />
     </Page>
   );
