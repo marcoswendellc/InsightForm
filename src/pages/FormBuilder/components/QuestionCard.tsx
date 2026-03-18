@@ -75,6 +75,7 @@ const ERROR_STYLE: React.CSSProperties = {
 
 const MIN_YEAR = 1900;
 const MAX_YEAR = 2099;
+const MAX_DATE_DIGITS = 8;
 
 function goToKey(goTo?: GoTo) {
   if (!goTo || goTo.kind === "next") return "next";
@@ -99,16 +100,23 @@ function onlyDigits(value: string) {
   return value.replace(/\D/g, "");
 }
 
-function applyDateMask(value: string) {
-  const digits = onlyDigits(value).slice(0, 8);
+function clampDateDigits(value: string) {
+  return onlyDigits(value).slice(0, MAX_DATE_DIGITS);
+}
 
+function applyDateMaskFromDigits(digits: string) {
   if (digits.length <= 2) return digits;
   if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
   return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
 }
 
+function normalizeDateInput(value: string) {
+  const digits = clampDateDigits(value);
+  return applyDateMaskFromDigits(digits);
+}
+
 function parseMaskedDate(value: string) {
-  const [dayStr, monthStr, yearStr] = value.split("/");
+  const [dayStr = "", monthStr = "", yearStr = ""] = value.split("/");
 
   return {
     day: Number(dayStr),
@@ -138,18 +146,17 @@ function validateMaskedDate(value: string) {
   const { day, month, year, dayStr, monthStr, yearStr } = parseMaskedDate(value);
 
   if (!dayStr || !monthStr || !yearStr) {
-    return { isValid: false, message: "Informe a data completa no formato dd/mm/aaaa." };
+    return {
+      isValid: false,
+      message: "Informe a data completa no formato dd/mm/aaaa."
+    };
   }
 
   if (dayStr.length !== 2 || monthStr.length !== 2 || yearStr.length !== 4) {
     return { isValid: false, message: "Use o formato dd/mm/aaaa." };
   }
 
-  if (
-    Number.isNaN(day) ||
-    Number.isNaN(month) ||
-    Number.isNaN(year)
-  ) {
+  if (Number.isNaN(day) || Number.isNaN(month) || Number.isNaN(year)) {
     return { isValid: false, message: "Data inválida." };
   }
 
@@ -181,6 +188,16 @@ function formatToIsoDate(maskedDate: string) {
   return `${yearStr}-${monthStr}-${dayStr}`;
 }
 
+type DateTextFieldProps = {
+  label?: string;
+  value: string;
+  error?: string;
+  disabled: boolean;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+};
+
 function DateTextField({
   label,
   value,
@@ -189,15 +206,51 @@ function DateTextField({
   placeholder,
   onChange,
   onBlur
-}: {
-  label?: string;
-  value: string;
-  error?: string;
-  disabled: boolean;
-  placeholder?: string;
-  onChange: (value: string) => void;
-  onBlur: () => void;
-}) {
+}: DateTextFieldProps) {
+  function handleChange(rawValue: string) {
+    onChange(normalizeDateInput(rawValue));
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "Tab",
+      "ArrowLeft",
+      "ArrowRight",
+      "Home",
+      "End"
+    ];
+
+    if (allowedKeys.includes(e.key)) return;
+
+    if (!/^\d$/.test(e.key)) {
+      e.preventDefault();
+      return;
+    }
+
+    const input = e.currentTarget;
+    const selectionStart = input.selectionStart ?? value.length;
+    const selectionEnd = input.selectionEnd ?? value.length;
+
+    const currentDigits = onlyDigits(value);
+    const selectedText = value.slice(selectionStart, selectionEnd);
+    const selectedDigits = onlyDigits(selectedText);
+
+    const nextDigitsLength =
+      currentDigits.length - selectedDigits.length + 1;
+
+    if (nextDigitsLength > MAX_DATE_DIGITS) {
+      e.preventDefault();
+    }
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    e.preventDefault();
+    const pastedText = e.clipboardData.getData("text");
+    onChange(normalizeDateInput(pastedText));
+  }
+
   return (
     <div style={{ display: "grid", gap: 6 }}>
       {label ? <div style={LABEL_STYLE}>{label}</div> : null}
@@ -209,7 +262,9 @@ function DateTextField({
         disabled={disabled}
         value={value}
         maxLength={10}
-        onChange={(e) => onChange(applyDateMask(e.target.value))}
+        onChange={(e) => handleChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
         onBlur={onBlur}
         style={INPUT_LINE_STYLE}
       />
@@ -235,11 +290,11 @@ export default function QuestionCard({
   const isBuilder = mode === "builder";
   const isPreview = mode === "preview";
 
+  const isText = question.type === "text";
+  const isDate = question.type === "date";
   const isMultipleChoice = question.type === "multipleChoice";
   const isCheckbox = question.type === "checkbox";
   const isOptions = isMultipleChoice || isCheckbox;
-  const isDate = question.type === "date";
-  const isText = question.type === "text";
 
   const hasOther = !!question.options?.some((o) => o.isOther);
   const canHaveJump = isBuilder && isMultipleChoice;
@@ -270,20 +325,22 @@ export default function QuestionCard({
   }
 
   function handleDateChange(nextValue: string) {
-    setDateValue(nextValue);
+    const normalizedValue = normalizeDateInput(nextValue);
+    setDateValue(normalizedValue);
 
-    if (!nextValue) {
+    const digitsLength = onlyDigits(normalizedValue).length;
+
+    if (!normalizedValue) {
       setDateError("");
       return;
     }
 
-    const digitsLength = onlyDigits(nextValue).length;
-    if (digitsLength < 8) {
+    if (digitsLength < MAX_DATE_DIGITS) {
       setDateError("");
       return;
     }
 
-    const validation = validateMaskedDate(nextValue);
+    const validation = validateMaskedDate(normalizedValue);
     setDateError(validation.isValid ? "" : validation.message);
   }
 
@@ -294,13 +351,7 @@ export default function QuestionCard({
     }
 
     const validation = validateMaskedDate(dateValue);
-
-    if (!validation.isValid) {
-      setDateError(validation.message);
-      return;
-    }
-
-    setDateError("");
+    setDateError(validation.isValid ? "" : validation.message);
   }
 
   function renderQuestionTitle() {
@@ -465,15 +516,8 @@ export default function QuestionCard({
 
   function renderAnswerArea() {
     if (isText) return renderTextInput();
-
-    if (isDate) {
-      return question.includeTime
-        ? renderDateTimeInput()
-        : renderDateOnlyInput();
-    }
-
+    if (isDate) return question.includeTime ? renderDateTimeInput() : renderDateOnlyInput();
     if (isOptions) return renderOptions();
-
     return null;
   }
 
