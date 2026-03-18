@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Mode, Question, QuestionType, Section, GoTo } from "../types";
 import { Trash } from "phosphor-react";
 import {
@@ -29,9 +29,7 @@ type Props = {
   question: Question;
   sectionId: string;
   sections: Section[];
-
   onRemove: () => void;
-
   onUpdate: (data: {
     label?: string;
     required?: boolean;
@@ -39,10 +37,8 @@ type Props = {
     jumpEnabled?: boolean;
     includeTime?: boolean;
   }) => void;
-
   onAddOption: () => void;
   onAddOtherOption: () => void;
-
   onUpdateOption: (index: number, value: string) => void;
   onUpdateOptionGoTo: (index: number, goTo: GoTo) => void;
   onRemoveOption: (index: number) => void;
@@ -72,8 +68,11 @@ const QUESTION_TITLE_STYLE: React.CSSProperties = {
   lineHeight: 1.4
 };
 
-const DATE_MIN = "1900-01-01";
-const DATE_MAX = "2099-12-31";
+const ERROR_STYLE: React.CSSProperties = {
+  fontSize: 12,
+  color: "#d93025"
+};
+
 const MIN_YEAR = 1900;
 const MAX_YEAR = 2099;
 
@@ -96,26 +95,128 @@ function getSectionLabel(section: Section, index: number) {
   return section.title?.trim() ? section.title : `Seção ${index + 1}`;
 }
 
-function isValidDateYear(value: string) {
-  if (!value) return true;
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
 
-  const [yearStr, monthStr, dayStr] = value.split("-");
-  if (!yearStr || !monthStr || !dayStr) return false;
-  if (yearStr.length !== 4) return false;
+function applyDateMask(value: string) {
+  const digits = onlyDigits(value).slice(0, 8);
 
-  const year = Number(yearStr);
-  const month = Number(monthStr);
-  const day = Number(dayStr);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+}
 
-  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
-    return false;
+function parseMaskedDate(value: string) {
+  const [dayStr, monthStr, yearStr] = value.split("/");
+
+  return {
+    day: Number(dayStr),
+    month: Number(monthStr),
+    year: Number(yearStr),
+    dayStr,
+    monthStr,
+    yearStr
+  };
+}
+
+function isLeapYear(year: number) {
+  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+}
+
+function getDaysInMonth(month: number, year: number) {
+  if (month === 2) return isLeapYear(year) ? 29 : 28;
+  if ([4, 6, 9, 11].includes(month)) return 30;
+  return 31;
+}
+
+function validateMaskedDate(value: string) {
+  if (!value) {
+    return { isValid: true, message: "" };
   }
 
-  if (year < MIN_YEAR || year > MAX_YEAR) return false;
-  if (month < 1 || month > 12) return false;
-  if (day < 1 || day > 31) return false;
+  const { day, month, year, dayStr, monthStr, yearStr } = parseMaskedDate(value);
 
-  return true;
+  if (!dayStr || !monthStr || !yearStr) {
+    return { isValid: false, message: "Informe a data completa no formato dd/mm/aaaa." };
+  }
+
+  if (dayStr.length !== 2 || monthStr.length !== 2 || yearStr.length !== 4) {
+    return { isValid: false, message: "Use o formato dd/mm/aaaa." };
+  }
+
+  if (
+    Number.isNaN(day) ||
+    Number.isNaN(month) ||
+    Number.isNaN(year)
+  ) {
+    return { isValid: false, message: "Data inválida." };
+  }
+
+  if (year < MIN_YEAR || year > MAX_YEAR) {
+    return {
+      isValid: false,
+      message: `O ano deve estar entre ${MIN_YEAR} e ${MAX_YEAR}.`
+    };
+  }
+
+  if (month < 1 || month > 12) {
+    return { isValid: false, message: "Mês inválido." };
+  }
+
+  const maxDay = getDaysInMonth(month, year);
+
+  if (day < 1 || day > maxDay) {
+    return { isValid: false, message: "Dia inválido." };
+  }
+
+  return { isValid: true, message: "" };
+}
+
+function formatToIsoDate(maskedDate: string) {
+  const validation = validateMaskedDate(maskedDate);
+  if (!validation.isValid) return "";
+
+  const { dayStr, monthStr, yearStr } = parseMaskedDate(maskedDate);
+  return `${yearStr}-${monthStr}-${dayStr}`;
+}
+
+function DateTextField({
+  label,
+  value,
+  error,
+  disabled,
+  placeholder,
+  onChange,
+  onBlur
+}: {
+  label?: string;
+  value: string;
+  error?: string;
+  disabled: boolean;
+  placeholder?: string;
+  onChange: (value: string) => void;
+  onBlur: () => void;
+}) {
+  return (
+    <div style={{ display: "grid", gap: 6 }}>
+      {label ? <div style={LABEL_STYLE}>{label}</div> : null}
+
+      <input
+        type="text"
+        inputMode="numeric"
+        placeholder={placeholder ?? "dd/mm/aaaa"}
+        disabled={disabled}
+        value={value}
+        maxLength={10}
+        onChange={(e) => onChange(applyDateMask(e.target.value))}
+        onBlur={onBlur}
+        style={INPUT_LINE_STYLE}
+      />
+
+      {!!error && <span style={ERROR_STYLE}>{error}</span>}
+    </div>
+  );
 }
 
 export default function QuestionCard({
@@ -144,16 +245,19 @@ export default function QuestionCard({
   const canHaveJump = isBuilder && isMultipleChoice;
   const showJump = isMultipleChoice && !!question.jumpEnabled;
 
-  const availableSections = sections.filter((s) => s.id !== sectionId);
+  const availableSections = useMemo(
+    () => sections.filter((s) => s.id !== sectionId),
+    [sections, sectionId]
+  );
 
   const [dateValue, setDateValue] = useState("");
   const [timeValue, setTimeValue] = useState("");
   const [dateError, setDateError] = useState("");
 
   useEffect(() => {
-    setDateError("");
     setDateValue("");
     setTimeValue("");
+    setDateError("");
   }, [question.id, question.type, question.includeTime]);
 
   function handleTypeChange(value: string) {
@@ -173,12 +277,14 @@ export default function QuestionCard({
       return;
     }
 
-    if (!isValidDateYear(nextValue)) {
-      setDateError(`Informe uma data com ano entre ${MIN_YEAR} e ${MAX_YEAR}.`);
+    const digitsLength = onlyDigits(nextValue).length;
+    if (digitsLength < 8) {
+      setDateError("");
       return;
     }
 
-    setDateError("");
+    const validation = validateMaskedDate(nextValue);
+    setDateError(validation.isValid ? "" : validation.message);
   }
 
   function handleDateBlur() {
@@ -187,9 +293,10 @@ export default function QuestionCard({
       return;
     }
 
-    if (!isValidDateYear(dateValue)) {
-      setDateValue("");
-      setDateError(`Informe uma data com ano entre ${MIN_YEAR} e ${MAX_YEAR}.`);
+    const validation = validateMaskedDate(dateValue);
+
+    if (!validation.isValid) {
+      setDateError(validation.message);
       return;
     }
 
@@ -230,22 +337,13 @@ export default function QuestionCard({
 
   function renderDateOnlyInput() {
     return (
-      <div style={{ display: "grid", gap: 6 }}>
-        <input
-          type="date"
-          disabled={!isPreview}
-          min={DATE_MIN}
-          max={DATE_MAX}
-          value={dateValue}
-          onChange={(e) => handleDateChange(e.target.value)}
-          onBlur={handleDateBlur}
-          style={INPUT_LINE_STYLE}
-        />
-
-        {!!dateError && (
-          <span style={{ fontSize: 12, color: "#d93025" }}>{dateError}</span>
-        )}
-      </div>
+      <DateTextField
+        value={dateValue}
+        error={dateError}
+        disabled={!isPreview}
+        onChange={handleDateChange}
+        onBlur={handleDateBlur}
+      />
     );
   }
 
@@ -256,21 +354,18 @@ export default function QuestionCard({
           style={{
             display: "flex",
             gap: 12,
-            alignItems: "flex-end",
+            alignItems: "flex-start",
             flexWrap: "wrap"
           }}
         >
           <div style={{ flex: "1 1 220px", minWidth: 180 }}>
-            <div style={LABEL_STYLE}>Data</div>
-            <input
-              type="date"
-              disabled={!isPreview}
-              min={DATE_MIN}
-              max={DATE_MAX}
+            <DateTextField
+              label="Data"
               value={dateValue}
-              onChange={(e) => handleDateChange(e.target.value)}
+              error=""
+              disabled={!isPreview}
+              onChange={handleDateChange}
               onBlur={handleDateBlur}
-              style={INPUT_LINE_STYLE}
             />
           </div>
 
@@ -286,9 +381,7 @@ export default function QuestionCard({
           </div>
         </div>
 
-        {!!dateError && (
-          <span style={{ fontSize: 12, color: "#d93025" }}>{dateError}</span>
-        )}
+        {!!dateError && <span style={ERROR_STYLE}>{dateError}</span>}
       </div>
     );
   }
@@ -384,6 +477,8 @@ export default function QuestionCard({
     return null;
   }
 
+  const isoDateValue = formatToIsoDate(dateValue);
+
   return (
     <QuestionShell>
       {isBuilder && (
@@ -410,7 +505,13 @@ export default function QuestionCard({
 
       {renderQuestionTitle()}
 
-      <div style={{ marginTop: isBuilder ? 10 : 0 }}>{renderAnswerArea()}</div>
+      <div style={{ marginTop: isBuilder ? 10 : 0 }}>
+        {renderAnswerArea()}
+      </div>
+
+      {isDate && isPreview && !dateError && !!isoDateValue && (
+        <input type="hidden" value={isoDateValue} readOnly />
+      )}
 
       {isBuilder && (
         <Footer>
