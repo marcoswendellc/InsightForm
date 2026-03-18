@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { Mode, Question, QuestionType, Section, GoTo } from "../types";
 import { Trash } from "phosphor-react";
 import {
@@ -28,7 +29,9 @@ type Props = {
   question: Question;
   sectionId: string;
   sections: Section[];
+
   onRemove: () => void;
+
   onUpdate: (data: {
     label?: string;
     required?: boolean;
@@ -36,8 +39,10 @@ type Props = {
     jumpEnabled?: boolean;
     includeTime?: boolean;
   }) => void;
+
   onAddOption: () => void;
   onAddOtherOption: () => void;
+
   onUpdateOption: (index: number, value: string) => void;
   onUpdateOptionGoTo: (index: number, goTo: GoTo) => void;
   onRemoveOption: (index: number) => void;
@@ -69,6 +74,8 @@ const QUESTION_TITLE_STYLE: React.CSSProperties = {
 
 const DATE_MIN = "1900-01-01";
 const DATE_MAX = "2099-12-31";
+const MIN_YEAR = 1900;
+const MAX_YEAR = 2099;
 
 function goToKey(goTo?: GoTo) {
   if (!goTo || goTo.kind === "next") return "next";
@@ -87,6 +94,28 @@ function parseGoTo(value: string): GoTo {
 
 function getSectionLabel(section: Section, index: number) {
   return section.title?.trim() ? section.title : `Seção ${index + 1}`;
+}
+
+function isValidDateYear(value: string) {
+  if (!value) return true;
+
+  const [yearStr, monthStr, dayStr] = value.split("-");
+  if (!yearStr || !monthStr || !dayStr) return false;
+  if (yearStr.length !== 4) return false;
+
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const day = Number(dayStr);
+
+  if (Number.isNaN(year) || Number.isNaN(month) || Number.isNaN(day)) {
+    return false;
+  }
+
+  if (year < MIN_YEAR || year > MAX_YEAR) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+
+  return true;
 }
 
 export default function QuestionCard({
@@ -117,6 +146,16 @@ export default function QuestionCard({
 
   const availableSections = sections.filter((s) => s.id !== sectionId);
 
+  const [dateValue, setDateValue] = useState("");
+  const [timeValue, setTimeValue] = useState("");
+  const [dateError, setDateError] = useState("");
+
+  useEffect(() => {
+    setDateError("");
+    setDateValue("");
+    setTimeValue("");
+  }, [question.id, question.type, question.includeTime]);
+
   function handleTypeChange(value: string) {
     const nextType = value as QuestionType;
 
@@ -124,6 +163,37 @@ export default function QuestionCard({
       type: nextType,
       ...(nextType !== "date" ? { includeTime: false } : {})
     });
+  }
+
+  function handleDateChange(nextValue: string) {
+    setDateValue(nextValue);
+
+    if (!nextValue) {
+      setDateError("");
+      return;
+    }
+
+    if (!isValidDateYear(nextValue)) {
+      setDateError(`Informe uma data com ano entre ${MIN_YEAR} e ${MAX_YEAR}.`);
+      return;
+    }
+
+    setDateError("");
+  }
+
+  function handleDateBlur() {
+    if (!dateValue) {
+      setDateError("");
+      return;
+    }
+
+    if (!isValidDateYear(dateValue)) {
+      setDateValue("");
+      setDateError(`Informe uma data com ano entre ${MIN_YEAR} e ${MAX_YEAR}.`);
+      return;
+    }
+
+    setDateError("");
   }
 
   function renderQuestionTitle() {
@@ -158,47 +228,67 @@ export default function QuestionCard({
     );
   }
 
-  function renderDateInput() {
+  function renderDateOnlyInput() {
     return (
-      <input
-        type="date"
-        disabled={!isPreview}
-        min={DATE_MIN}
-        max={DATE_MAX}
-        style={INPUT_LINE_STYLE}
-      />
+      <div style={{ display: "grid", gap: 6 }}>
+        <input
+          type="date"
+          disabled={!isPreview}
+          min={DATE_MIN}
+          max={DATE_MAX}
+          value={dateValue}
+          onChange={(e) => handleDateChange(e.target.value)}
+          onBlur={handleDateBlur}
+          style={INPUT_LINE_STYLE}
+        />
+
+        {!!dateError && (
+          <span style={{ fontSize: 12, color: "#d93025" }}>{dateError}</span>
+        )}
+      </div>
     );
   }
 
   function renderDateTimeInput() {
     return (
-      <div
-        style={{
-          display: "flex",
-          gap: 12,
-          alignItems: "flex-end",
-          flexWrap: "wrap"
-        }}
-      >
-        <div style={{ flex: "1 1 220px", minWidth: 180 }}>
-          <div style={LABEL_STYLE}>Data</div>
-          <input
-            type="date"
-            disabled={!isPreview}
-            min={DATE_MIN}
-            max={DATE_MAX}
-            style={INPUT_LINE_STYLE}
-          />
+      <div style={{ display: "grid", gap: 6 }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 12,
+            alignItems: "flex-end",
+            flexWrap: "wrap"
+          }}
+        >
+          <div style={{ flex: "1 1 220px", minWidth: 180 }}>
+            <div style={LABEL_STYLE}>Data</div>
+            <input
+              type="date"
+              disabled={!isPreview}
+              min={DATE_MIN}
+              max={DATE_MAX}
+              value={dateValue}
+              onChange={(e) => handleDateChange(e.target.value)}
+              onBlur={handleDateBlur}
+              style={INPUT_LINE_STYLE}
+            />
+          </div>
+
+          <div style={{ flex: "1 1 160px", minWidth: 140 }}>
+            <div style={LABEL_STYLE}>Hora</div>
+            <input
+              type="time"
+              disabled={!isPreview}
+              value={timeValue}
+              onChange={(e) => setTimeValue(e.target.value)}
+              style={INPUT_LINE_STYLE}
+            />
+          </div>
         </div>
 
-        <div style={{ flex: "1 1 160px", minWidth: 140 }}>
-          <div style={LABEL_STYLE}>Hora</div>
-          <input
-            type="time"
-            disabled={!isPreview}
-            style={INPUT_LINE_STYLE}
-          />
-        </div>
+        {!!dateError && (
+          <span style={{ fontSize: 12, color: "#d93025" }}>{dateError}</span>
+        )}
       </div>
     );
   }
@@ -284,7 +374,9 @@ export default function QuestionCard({
     if (isText) return renderTextInput();
 
     if (isDate) {
-      return question.includeTime ? renderDateTimeInput() : renderDateInput();
+      return question.includeTime
+        ? renderDateTimeInput()
+        : renderDateOnlyInput();
     }
 
     if (isOptions) return renderOptions();
@@ -318,9 +410,7 @@ export default function QuestionCard({
 
       {renderQuestionTitle()}
 
-      <div style={{ marginTop: isBuilder ? 10 : 0 }}>
-        {renderAnswerArea()}
-      </div>
+      <div style={{ marginTop: isBuilder ? 10 : 0 }}>{renderAnswerArea()}</div>
 
       {isBuilder && (
         <Footer>
