@@ -8,6 +8,14 @@ export type SubmitAnswer = {
   value: string | string[];
 };
 
+function isValidDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function isValidDateTime(value: string) {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value);
+}
+
 export function resolveGoToTarget(
   form: FormDefinition,
   currentSectionIndex: number,
@@ -22,7 +30,10 @@ export function resolveGoToTarget(
   }
 
   if (goTo.kind === "section") {
-    const targetIndex = form.sections.findIndex((section) => section.id === goTo.sectionId);
+    const targetIndex = form.sections.findIndex(
+      (section) => section.id === goTo.sectionId
+    );
+
     return targetIndex !== -1 ? targetIndex : currentSectionIndex + 1;
   }
 
@@ -43,7 +54,10 @@ export function getNextSectionIndex(
     const answer = answers[question.id];
     if (!answer || Array.isArray(answer)) continue;
 
-    const selectedOption = question.options?.find((option) => option.id === answer);
+    const selectedOption = question.options?.find(
+      (option) => option.id === answer
+    );
+
     if (selectedOption?.goTo) {
       return resolveGoToTarget(form, currentSectionIndex, selectedOption.goTo);
     }
@@ -64,6 +78,18 @@ export function isEmptyAnswer(
     return !Array.isArray(value) || value.length === 0;
   }
 
+  if (question.type === "date") {
+    if (typeof value !== "string" || value.trim() === "") {
+      return true;
+    }
+
+    if (question.includeTime) {
+      return !isValidDateTime(value.trim());
+    }
+
+    return !isValidDateOnly(value.trim());
+  }
+
   return typeof value !== "string" || value.trim() === "";
 }
 
@@ -79,7 +105,10 @@ export function validateSection(
     const value = answers[question.id];
 
     if (isEmptyAnswer(question, value)) {
-      nextErrors[question.id] = "Esta pergunta é obrigatória.";
+      nextErrors[question.id] =
+        question.type === "date" && question.includeTime
+          ? "Preencha a data e a hora."
+          : "Esta pergunta é obrigatória.";
     }
   }
 
