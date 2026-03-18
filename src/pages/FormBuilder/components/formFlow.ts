@@ -16,6 +16,43 @@ function isValidDateTime(value: string) {
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(value);
 }
 
+function isBlankString(value: unknown): value is string {
+  return typeof value === "string" && value.trim() === "";
+}
+
+function isEmptyCheckboxAnswer(value: string | string[] | undefined) {
+  return !Array.isArray(value) || value.length === 0;
+}
+
+function isEmptyTextLikeAnswer(value: string | string[] | undefined) {
+  return typeof value !== "string" || value.trim() === "";
+}
+
+function isMissingRequiredDateAnswer(
+  question: Question,
+  value: string | string[] | undefined
+) {
+  if (typeof value !== "string" || value.trim() === "") {
+    return true;
+  }
+
+  const normalizedValue = value.trim();
+
+  if (question.includeTime === true) {
+    return !isValidDateTime(normalizedValue);
+  }
+
+  return !isValidDateOnly(normalizedValue);
+}
+
+function getRequiredErrorMessage(question: Question) {
+  if (question.type === "date" && question.includeTime === true) {
+    return "Preencha a data e a hora.";
+  }
+
+  return "Esta pergunta é obrigatória.";
+}
+
 export function resolveGoToTarget(
   form: FormDefinition,
   currentSectionIndex: number,
@@ -75,22 +112,14 @@ export function isEmptyAnswer(
   value: string | string[] | undefined
 ) {
   if (question.type === "checkbox") {
-    return !Array.isArray(value) || value.length === 0;
+    return isEmptyCheckboxAnswer(value);
   }
 
   if (question.type === "date") {
-    if (typeof value !== "string" || value.trim() === "") {
-      return true;
-    }
-
-    if (question.includeTime) {
-      return !isValidDateTime(value.trim());
-    }
-
-    return !isValidDateOnly(value.trim());
+    return isMissingRequiredDateAnswer(question, value);
   }
 
-  return typeof value !== "string" || value.trim() === "";
+  return isEmptyTextLikeAnswer(value);
 }
 
 export function validateSection(
@@ -103,12 +132,10 @@ export function validateSection(
     if (!question.required) continue;
 
     const value = answers[question.id];
+    const hasEmptyAnswer = isEmptyAnswer(question, value);
 
-    if (isEmptyAnswer(question, value)) {
-      nextErrors[question.id] =
-        question.type === "date" && question.includeTime
-          ? "Preencha a data e a hora."
-          : "Esta pergunta é obrigatória.";
+    if (hasEmptyAnswer) {
+      nextErrors[question.id] = getRequiredErrorMessage(question);
     }
   }
 
@@ -118,8 +145,11 @@ export function validateSection(
 export function buildSubmitAnswers(answers: AnswersMap): SubmitAnswer[] {
   return Object.entries(answers)
     .filter(([, value]) => {
-      if (Array.isArray(value)) return value.length > 0;
-      return value.trim() !== "";
+      if (Array.isArray(value)) {
+        return value.length > 0;
+      }
+
+      return !isBlankString(value) && typeof value === "string";
     })
     .map(([questionId, value]) => ({
       questionId,
