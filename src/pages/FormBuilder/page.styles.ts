@@ -8,7 +8,7 @@ const colors = {
   border: "#E5E7EB",
   bg: "#F7F8FA",
   white: "#FFFFFF",
-  muted: "#F3F4F6",
+  muted: "#F3F4F6"
 };
 
 export const Page = styled.div`
@@ -40,11 +40,9 @@ export const Header = styled.header`
   border: 1px solid ${colors.border};
   border-radius: 18px;
   padding: 18px 20px;
-
   display: flex;
   align-items: center;
   gap: 16px;
-
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
 
   @media (max-width: 768px) {
@@ -57,7 +55,6 @@ export const TitleInput = styled.input`
   width: 100%;
   border: none;
   outline: none;
-
   font-size: 22px;
   font-weight: 800;
   line-height: 1.2;
@@ -85,24 +82,37 @@ export const Actions = styled.div`
   display: flex;
   gap: 10px;
   flex-shrink: 0;
+  align-items: center;
+  flex-wrap: wrap;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
 `;
 
 export const IconBtn = styled.button`
-  width: 42px;
+  min-width: 42px;
   height: 42px;
-
+  padding: 0 12px;
   border-radius: 12px;
   border: none;
   cursor: pointer;
-
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-
+  gap: 8px;
   background: ${colors.muted};
   color: ${colors.textSoft};
-
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
   transition: all 0.2s ease;
+
+  &[data-icon-only="true"] {
+    width: 42px;
+    min-width: 42px;
+    padding: 0;
+  }
 
   &[data-active="true"] {
     background: ${colors.primarySoft};
@@ -119,11 +129,14 @@ export const IconBtn = styled.button`
     opacity: 0.55;
     cursor: not-allowed;
   }
+
+  @media (max-width: 768px) {
+    flex: 1 1 auto;
+  }
 `;
 
 export const Body = styled.div`
   margin-top: 24px;
-
   display: flex;
   flex-direction: column;
   gap: 18px;
