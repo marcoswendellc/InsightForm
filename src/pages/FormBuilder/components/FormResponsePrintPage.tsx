@@ -329,7 +329,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
         if (!element) return;
 
         const options = {
-          margin: [6, 6, 6, 6] as [number, number, number, number],
+          margin: [4, 4, 4, 4] as [number, number, number, number],
           filename: getPdfFileName(form, responseData),
           image: { type: "jpeg" as const, quality: 0.98 },
           html2canvas: {
@@ -343,7 +343,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
             orientation: "portrait" as const
           },
           pagebreak: {
-            mode: ["avoid-all", "css", "legacy"] as const
+            mode: ["css", "legacy"] as const
           }
         };
 
@@ -394,28 +394,28 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
   }
 
   return (
-    <div style={{ padding: 16, background: "#f5f7fa" }}>
-      <div style={{ marginBottom: 12, color: "#475467", fontWeight: 600 }}>
+    <div style={{ padding: 12, background: "#f5f7fa" }}>
+      <div style={{ marginBottom: 10, color: "#475467", fontWeight: 600 }}>
         {isGeneratingPdf ? "Gerando PDF..." : "Preparando download..."}
       </div>
 
       <div
         ref={contentRef}
         style={{
-          width: "190mm",
+          width: "198mm",
           margin: "0 auto",
           background: "#ffffff",
           color: "#111827",
           fontFamily: '"Inter", "Segoe UI", Arial, sans-serif',
-          padding: "10mm 10mm 8mm",
+          padding: "8mm 6mm 6mm",
           boxSizing: "border-box"
         }}
       >
         <div
           style={{
             borderBottom: "2px solid #ED1C24",
-            paddingBottom: 12,
-            marginBottom: 16
+            paddingBottom: 10,
+            marginBottom: 12
           }}
         >
           <div
@@ -445,7 +445,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
 
           <div
             style={{
-              marginTop: 12,
+              marginTop: 8,
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
               gap: 8
