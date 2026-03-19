@@ -1,35 +1,29 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
-import { getUserFromRequest } from "../../src/server/_auth.js";
+import { getUserFromRequest, isPublishedStatus } from "../../src/server/_auth.js";
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-const TAB_NAME = "responses";
+const TAB_NAME = "forms";
 
 const HEADERS = [
   "id",
-  "form_id",
-  "form_title",
-  "submitted_at",
-  "respondent_id",
-  "respondent_name",
-  "respondent_email",
+  "title",
   "status",
-  "source"
+  "created_at",
+  "updated_at",
+  "published_at"
 ] as const;
 
-type ResponseRow = {
+type FormRow = {
   id: string;
-  form_id: string;
-  form_title: string;
-  submitted_at: string;
-  respondent_id: string;
-  respondent_name: string;
-  respondent_email: string;
+  title: string;
   status: string;
-  source: string;
+  created_at: string;
+  updated_at: string;
+  published_at: string;
 };
 
 function assertEnv() {
@@ -77,22 +71,13 @@ async function readTab(
   return (resp.data.values ?? []) as string[][];
 }
 
-function sortBySubmittedAtDesc(rows: ResponseRow[]) {
+function sortByUpdatedAtDesc(rows: FormRow[]) {
   return [...rows].sort((a, b) => {
-    const aTime = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
-    const bTime = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
+    const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+    const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
 
     return bTime - aTime;
   });
-}
-
-function isResponseOwner(response: ResponseRow, user: any) {
-  return (
-    response.respondent_id === user.id ||
-    (!!user.username &&
-      !!response.respondent_email &&
-      response.respondent_email.toLowerCase() === user.username.toLowerCase())
-  );
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -110,69 +95,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
-    const formId = String(req.query.formId ?? "").trim();
-
-    if (!formId) {
-      return res.status(400).json({
-        ok: false,
-        error: "formId é obrigatório."
-      });
-    }
-
     assertEnv();
 
     const sheets = await getSheetsClient();
     const rows = await readTab(sheets, TAB_NAME);
 
     if (rows.length === 0) {
-      return res.status(200).json({ ok: true, responses: [] });
+      return res.status(200).json({ ok: true, forms: [] });
     }
 
-    let responses: ResponseRow[] = rows
+    let forms: FormRow[] = rows
       .slice(1)
       .map((row) => rowToObject(HEADERS, row))
-      .filter((row) => row.id && row.form_id === formId)
+      .filter((row) => row.id)
       .map((row) => ({
         id: row.id,
-        form_id: row.form_id,
-        form_title: row.form_title,
-        submitted_at: row.submitted_at,
-        respondent_id: row.respondent_id,
-        respondent_name: row.respondent_name,
-        respondent_email: row.respondent_email,
+        title: row.title,
         status: row.status,
-        source: row.source
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+        published_at: row.published_at
       }));
 
     if (user.role !== "admin") {
-      responses = responses.filter((response) => isResponseOwner(response, user));
+      forms = forms.filter((form) => isPublishedStatus(form.status));
     }
 
-    const sortedResponses = sortBySubmittedAtDesc(responses);
+    const sortedForms = sortByUpdatedAtDesc(forms);
 
     return res.status(200).json({
       ok: true,
-      responses: sortedResponses.map((response) => {
-        const isOwner = isResponseOwner(response, user);
-        const canEdit = user.role === "admin" || isOwner;
-        const canPrint = user.role === "admin" || isOwner;
-        const canDelete = user.role === "admin" || isOwner;
-
-        return {
-          id: response.id,
-          user_name:
-            response.respondent_name ||
-            response.respondent_email ||
-            "Usuário sem identificação",
-          submitted_at: response.submitted_at,
-          can_edit: canEdit,
-          can_print: canPrint,
-          can_delete: canDelete
-        };
-      })
+      forms: sortedForms.map((form) => ({
+        id: form.id,
+        title: form.title || "Formulário sem título",
+        status: form.status || "draft",
+        updated_at: form.updated_at || form.created_at || form.published_at || ""
+      }))
     });
   } catch (e: any) {
-    console.error("responses/list.ts error:", e);
+    console.error("forms/list.ts error:", e);
 
     return res.status(500).json({
       ok: false,
