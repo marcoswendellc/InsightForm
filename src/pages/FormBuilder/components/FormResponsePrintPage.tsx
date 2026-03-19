@@ -526,8 +526,8 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
                   borderRadius: 12,
                   overflow: "hidden",
                   background: "#ffffff",
-                  breakInside: "avoid",
-                  pageBreakInside: "avoid",
+                  breakInside: "auto",
+                  pageBreakInside: "auto",
                   marginBottom: 12
                 }}
               >
@@ -535,7 +535,9 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
                   style={{
                     background: "#F9FAFB",
                     borderBottom: "1px solid #E5E7EB",
-                    padding: "10px 12px"
+                    padding: "10px 12px",
+                    breakAfter: "avoid",
+                    pageBreakAfter: "avoid"
                   }}
                 >
                   <h2
@@ -563,7 +565,9 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
                         paddingBottom:
                           questionIndex < section.printableQuestions.length - 1
                             ? 10
-                            : 0
+                            : 0,
+                        breakInside: "avoid",
+                        pageBreakInside: "avoid"
                       }}
                     >
                       <div
