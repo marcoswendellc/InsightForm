@@ -505,11 +505,12 @@ export default function FormBuilderPage() {
     );
   };
 
+  //aqui
   const handleOpenResponsePdf = (
     targetFormId: string,
     responseId: string,
     canPrint = true
-  ) => {
+    ) => {
     if (!targetFormId.trim() || !responseId.trim() || !canPrint) return;
 
     const url =
@@ -517,8 +518,18 @@ export default function FormBuilderPage() {
       `&responseId=${encodeURIComponent(responseId)}`;
 
     const iframe = document.createElement("iframe");
-    iframe.style.display = "none";
+
     iframe.src = url;
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.top = "-10000px";
+    iframe.style.left = "-10000px";
+    iframe.style.width = "210mm";
+    iframe.style.height = "297mm";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+    iframe.style.border = "0";
+    iframe.style.background = "#fff";
 
     document.body.appendChild(iframe);
 
