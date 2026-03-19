@@ -505,19 +505,28 @@ export default function FormBuilderPage() {
     );
   };
 
-  //aqui
   const handleOpenResponsePdf = (
     targetFormId: string,
     responseId: string,
     canPrint = true
-    ) => {
+  ) => {
     if (!targetFormId.trim() || !responseId.trim() || !canPrint) return;
 
     const url =
       `/response-print?formId=${encodeURIComponent(targetFormId)}` +
       `&responseId=${encodeURIComponent(responseId)}`;
 
-    window.location.href = url;
+    const iframe = document.createElement("iframe");
+    iframe.style.display = "none";
+    iframe.src = url;
+
+    document.body.appendChild(iframe);
+
+    window.setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 60000);
   };
 
   const handleAddQuestion = (type: QuestionType) => {
