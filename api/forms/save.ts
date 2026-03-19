@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
 import crypto from "crypto";
-import { getUserFromRequest } from "../_auth.js";
+import { getUserFromRequest } from "../../src/server/_auth.js";
 
 const uuid = () => crypto.randomUUID();
 

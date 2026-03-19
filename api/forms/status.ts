@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
-import { getUserFromRequest } from "../_auth.js";
+import { getUserFromRequest } from "../../src/server/_auth.js";
 
 type SheetRowObject = Record<string, string>;
 type StatusValue = "draft" | "published";
