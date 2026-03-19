@@ -299,7 +299,13 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
   }, [form, responseData]);
 
   useEffect(() => {
-    if (isLoading || loadError || !responseData || !contentRef.current || isGeneratingPdf) {
+    if (
+      isLoading ||
+      loadError ||
+      !responseData ||
+      !contentRef.current ||
+      isGeneratingPdf
+    ) {
       return;
     }
 
@@ -323,7 +329,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
         if (!element) return;
 
         const options = {
-          margin: [10, 10, 10, 10] as [number, number, number, number],
+          margin: [6, 6, 6, 6] as [number, number, number, number],
           filename: getPdfFileName(form, responseData),
           image: { type: "jpeg" as const, quality: 0.98 },
           html2canvas: {
@@ -337,7 +343,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
             orientation: "portrait" as const
           },
           pagebreak: {
-            mode: ["css", "legacy"] as const
+            mode: ["avoid-all", "css", "legacy"] as const
           }
         };
 
@@ -359,7 +365,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
       }
     };
 
-    const timer = window.setTimeout(generatePdf, 350);
+    const timer = window.setTimeout(generatePdf, 500);
 
     return () => {
       cancelled = true;
@@ -388,39 +394,38 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
   }
 
   return (
-    <div style={{ padding: 24, background: "#f5f7fa" }}>
-      <div style={{ marginBottom: 16, color: "#475467", fontWeight: 600 }}>
+    <div style={{ padding: 16, background: "#f5f7fa" }}>
+      <div style={{ marginBottom: 12, color: "#475467", fontWeight: 600 }}>
         {isGeneratingPdf ? "Gerando PDF..." : "Preparando download..."}
       </div>
 
       <div
         ref={contentRef}
         style={{
-          width: "210mm",
-          minHeight: "297mm",
+          width: "190mm",
           margin: "0 auto",
           background: "#ffffff",
           color: "#111827",
           fontFamily: '"Inter", "Segoe UI", Arial, sans-serif',
-          padding: "18mm 16mm",
+          padding: "10mm 10mm 8mm",
           boxSizing: "border-box"
         }}
       >
         <div
           style={{
-            borderBottom: "3px solid #ED1C24",
-            paddingBottom: 18,
-            marginBottom: 24
+            borderBottom: "2px solid #ED1C24",
+            paddingBottom: 12,
+            marginBottom: 16
           }}
         >
           <div
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: 700,
               letterSpacing: "0.08em",
               textTransform: "uppercase",
               color: "#ED1C24",
-              marginBottom: 8
+              marginBottom: 6
             }}
           >
             Relatório de resposta
@@ -429,8 +434,8 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
           <h1
             style={{
               margin: 0,
-              fontSize: 24,
-              lineHeight: 1.25,
+              fontSize: 22,
+              lineHeight: 1.2,
               fontWeight: 800,
               color: "#101828"
             }}
@@ -440,33 +445,33 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
 
           <div
             style={{
-              marginTop: 16,
+              marginTop: 12,
               display: "grid",
               gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-              gap: 12
+              gap: 8
             }}
           >
             <div
               style={{
                 border: "1px solid #E5E7EB",
-                borderRadius: 12,
-                padding: "12px 14px",
+                borderRadius: 10,
+                padding: "10px 12px",
                 background: "#F9FAFB"
               }}
             >
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.04em",
                   color: "#6B7280",
-                  marginBottom: 6
+                  marginBottom: 4
                 }}
               >
                 Respondente
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
                 {respondentLabel}
               </div>
             </div>
@@ -474,24 +479,24 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
             <div
               style={{
                 border: "1px solid #E5E7EB",
-                borderRadius: 12,
-                padding: "12px 14px",
+                borderRadius: 10,
+                padding: "10px 12px",
                 background: "#F9FAFB"
               }}
             >
               <div
                 style={{
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.04em",
                   color: "#6B7280",
-                  marginBottom: 6
+                  marginBottom: 4
                 }}
               >
                 Data da resposta
               </div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#111827" }}>
                 {formatDateTime(responseData.submitted_at)}
               </div>
             </div>
@@ -502,40 +507,42 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
           <div
             style={{
               border: "1px solid #E5E7EB",
-              borderRadius: 14,
-              padding: 20,
+              borderRadius: 12,
+              padding: 16,
               background: "#FAFAFA",
               color: "#667085",
-              fontSize: 14
+              fontSize: 13
             }}
           >
             Nenhuma resposta preenchida para exibir.
           </div>
         ) : (
-          <div style={{ display: "grid", gap: 18 }}>
+          <div style={{ display: "grid", gap: 12 }}>
             {printableSections.map((section, sectionIndex) => (
               <section
                 key={section.id}
                 style={{
                   border: "1px solid #E5E7EB",
-                  borderRadius: 16,
+                  borderRadius: 12,
                   overflow: "hidden",
                   background: "#ffffff",
-                  pageBreakInside: "avoid"
+                  breakInside: "avoid",
+                  pageBreakInside: "avoid",
+                  marginBottom: 12
                 }}
               >
                 <div
                   style={{
                     background: "#F9FAFB",
                     borderBottom: "1px solid #E5E7EB",
-                    padding: "14px 16px"
+                    padding: "10px 12px"
                   }}
                 >
                   <h2
                     style={{
                       margin: 0,
-                      fontSize: 17,
-                      lineHeight: 1.35,
+                      fontSize: 15,
+                      lineHeight: 1.3,
                       fontWeight: 800,
                       color: "#111827"
                     }}
@@ -544,7 +551,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
                   </h2>
                 </div>
 
-                <div style={{ padding: 16, display: "grid", gap: 14 }}>
+                <div style={{ padding: 12, display: "grid", gap: 10 }}>
                   {section.printableQuestions.map((question, questionIndex) => (
                     <div
                       key={question.id}
@@ -555,16 +562,16 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
                             : "none",
                         paddingBottom:
                           questionIndex < section.printableQuestions.length - 1
-                            ? 14
+                            ? 10
                             : 0
                       }}
                     >
                       <div
                         style={{
-                          fontSize: 13,
+                          fontSize: 12,
                           fontWeight: 700,
                           color: "#344054",
-                          marginBottom: 6
+                          marginBottom: 4
                         }}
                       >
                         {question.label || "Pergunta sem título"}
@@ -572,8 +579,8 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
 
                       <div
                         style={{
-                          fontSize: 14,
-                          lineHeight: 1.7,
+                          fontSize: 13,
+                          lineHeight: 1.5,
                           color: "#111827",
                           whiteSpace: "pre-wrap"
                         }}
@@ -590,8 +597,8 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
 
         <div
           style={{
-            marginTop: 28,
-            paddingTop: 14,
+            marginTop: 16,
+            paddingTop: 10,
             borderTop: "1px solid #E5E7EB",
             fontSize: 11,
             color: "#6B7280",
