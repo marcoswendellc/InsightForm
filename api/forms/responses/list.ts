@@ -86,6 +86,15 @@ function sortBySubmittedAtDesc(rows: ResponseRow[]) {
   });
 }
 
+function isResponseOwner(response: ResponseRow, user: any) {
+  return (
+    response.respondent_id === user.id ||
+    (!!user.username &&
+      !!response.respondent_email &&
+      response.respondent_email.toLowerCase() === user.username.toLowerCase())
+  );
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ ok: false, error: "Method not allowed" });
@@ -136,14 +145,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }));
 
     if (user.role !== "admin") {
-      responses = responses.filter(
-        (response) =>
-          response.respondent_id === user.id ||
-          (!!user.username &&
-            !!response.respondent_email &&
-            response.respondent_email.toLowerCase() ===
-              user.username.toLowerCase())
-      );
+      responses = responses.filter((response) => isResponseOwner(response, user));
     }
 
     const sortedResponses = sortBySubmittedAtDesc(responses);
@@ -151,15 +153,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       ok: true,
       responses: sortedResponses.map((response) => {
-        const isOwner =
-          response.respondent_id === user.id ||
-          (!!user.username &&
-            !!response.respondent_email &&
-            response.respondent_email.toLowerCase() ===
-              user.username.toLowerCase());
-
+        const isOwner = isResponseOwner(response, user);
         const canEdit = user.role === "admin" || isOwner;
         const canPrint = user.role === "admin" || isOwner;
+        const canDelete = user.role === "admin" || isOwner;
 
         return {
           id: response.id,
@@ -169,7 +166,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             "Usuário sem identificação",
           submitted_at: response.submitted_at,
           can_edit: canEdit,
-          can_print: canPrint
+          can_print: canPrint,
+          can_delete: canDelete
         };
       })
     });
