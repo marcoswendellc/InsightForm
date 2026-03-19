@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
-import { Card, Page, Title, Subtitle, Field, Row, Btn, Hint } from "./styles";
+import {
+  Page,
+  Shell,
+  Brand,
+  BrandMark,
+  HeaderBlock,
+  Title,
+  Subtitle,
+  Form,
+  FieldGroup,
+  Label,
+  Field,
+  Btn,
+  Hint,
+  Footer
+} from "./styles";
 
 type LocationState = {
   from?: string;
@@ -26,6 +41,8 @@ export default function LoginPage() {
   }, [isAuthenticated, navigate]);
 
   async function handleLogin() {
+    if (loading) return;
+
     setError(null);
     setLoading(true);
 
@@ -38,7 +55,7 @@ export default function LoginPage() {
       }
 
       navigate(from, { replace: true });
-    } catch (err) {
+    } catch {
       setError("Não foi possível entrar. Tente novamente.");
     } finally {
       setLoading(false);
@@ -47,36 +64,59 @@ export default function LoginPage() {
 
   return (
     <Page>
-      <Card>
-        <Title>Entrar</Title>
-        <Subtitle>Bem-vindo ao Forms</Subtitle>
+      <Shell>
+        <Brand>
+          <BrandMark>TERRAL</BrandMark>
+        </Brand>
 
-        <Field
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          placeholder="Usuário"
-        />
+        <HeaderBlock>
+          <Title>Bem-vindo</Title>
+          <Subtitle>Acesse o Briefing de Desdobramento Digital</Subtitle>
+        </HeaderBlock>
 
-        <Field
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Senha"
-          type="password"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !loading) {
-              handleLogin();
-            }
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleLogin();
           }}
-        />
+        >
+          <FieldGroup>
+            <Label htmlFor="username">Login</Label>
+            <Field
+              id="username"
+              name="username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="seu@email.com"
+              autoComplete="username"
+              disabled={loading}
+            />
+          </FieldGroup>
 
-        {error && <Hint data-err>{error}</Hint>}
+          <FieldGroup>
+            <Label htmlFor="password">Senha</Label>
+            <Field
+              id="password"
+              name="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••"
+              autoComplete="current-password"
+              disabled={loading}
+            />
+          </FieldGroup>
 
-        <Row>
-          <Btn disabled={loading} onClick={handleLogin}>
+          {error && <Hint data-err="true">{error}</Hint>}
+
+          <Btn type="submit" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
           </Btn>
-        </Row>
-      </Card>
+        </Form>
+
+        <Footer>© 2026 Terral Shopping Centers</Footer>
+      </Shell>
     </Page>
   );
 }

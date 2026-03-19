@@ -3,62 +3,98 @@ import styled from "styled-components";
 const colors = {
   primary: "#ED1C24",
   primaryHover: "#D71920",
-  primarySoft: "#FDECEC",
-  text: "#1F2A37",
+  text: "#1F2937",
   textSoft: "#6B7280",
+  textMuted: "#9CA3AF",
   border: "#E5E7EB",
   white: "#FFFFFF",
-  muted: "#F3F4F6",
+  bg: "#F7F7F8",
   danger: "#B91C1C",
-  dangerSoft: "rgba(220, 38, 38, 0.10)",
+  dangerSoft: "rgba(220, 38, 38, 0.10)"
 };
 
 export const Page = styled.div`
   min-height: 100vh;
   display: grid;
   place-items: center;
-  padding: 18px;
-  background:
-    radial-gradient(circle at top, rgba(237, 28, 36, 0.16), transparent 38%),
-    linear-gradient(180deg, #f7f8fa 0%, #f3f4f6 100%);
+  padding: 24px;
+  background: ${colors.bg};
 `;
 
-export const Card = styled.div`
+export const Shell = styled.div`
   width: 100%;
-  max-width: 420px;
-  padding: 28px 24px;
-  border-radius: 22px;
-  background: ${colors.white};
-  border: 1px solid ${colors.border};
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  max-width: 460px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 `;
 
-export const Title = styled.div`
-  font-size: 28px;
+export const Brand = styled.div`
+  margin-bottom: 28px;
+`;
+
+export const BrandMark = styled.div`
+  font-size: 18px;
   font-weight: 800;
-  line-height: 1.15;
-  color: ${colors.text};
+  letter-spacing: 0.06em;
+  color: ${colors.primary};
 `;
 
-export const Subtitle = styled.div`
-  margin-top: 8px;
+export const HeaderBlock = styled.div`
+  text-align: center;
+  margin-bottom: 32px;
+`;
+
+export const Title = styled.h1`
+  margin: 0;
+  font-size: 48px;
+  line-height: 1.05;
+  font-weight: 800;
+  color: ${colors.text};
+
+  @media (max-width: 640px) {
+    font-size: 38px;
+  }
+`;
+
+export const Subtitle = styled.p`
+  margin: 10px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
   color: ${colors.textSoft};
-  font-size: 14px;
-  line-height: 1.45;
+`;
+
+export const Form = styled.form`
+  width: 100%;
+`;
+
+export const FieldGroup = styled.div`
+  width: 100%;
+  margin-bottom: 22px;
+`;
+
+export const Label = styled.label`
+  display: block;
+  margin-bottom: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: ${colors.text};
 `;
 
 export const Field = styled.input`
   width: 100%;
-  margin-top: 14px;
+  height: 56px;
   border: 1px solid ${colors.border};
   border-radius: 14px;
-  padding: 14px 16px;
-  font-size: 15px;
+  padding: 0 16px;
+  font-size: 18px;
   color: ${colors.text};
   background: ${colors.white};
+  box-sizing: border-box;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 
   &::placeholder {
-    color: #9ca3af;
+    color: ${colors.textMuted};
   }
 
   &:focus {
@@ -66,25 +102,25 @@ export const Field = styled.input`
     border-color: ${colors.primary};
     box-shadow: 0 0 0 3px rgba(237, 28, 36, 0.08);
   }
-`;
 
-export const Row = styled.div`
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+  &:disabled {
+    background: #fafafa;
+    cursor: not-allowed;
+  }
 `;
 
 export const Btn = styled.button`
+  width: 100%;
+  height: 54px;
+  margin-top: 4px;
   border: none;
-  cursor: pointer;
-  font-weight: 800;
-  font-size: 15px;
-  color: #fff;
-  background: ${colors.primary};
-  padding: 14px 18px;
   border-radius: 14px;
-  min-width: 120px;
-  transition: all 0.18s ease;
+  background: ${colors.primary};
+  color: ${colors.white};
+  font-size: 22px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease;
 
   &:hover:not(:disabled) {
     background: ${colors.primaryHover};
@@ -92,17 +128,17 @@ export const Btn = styled.button`
   }
 
   &:disabled {
-    opacity: 0.65;
+    opacity: 0.7;
     cursor: not-allowed;
     transform: none;
   }
 `;
 
 export const Hint = styled.div`
-  margin-top: 12px;
-  font-size: 12px;
-  color: ${colors.textSoft};
+  margin-bottom: 16px;
+  font-size: 13px;
   line-height: 1.45;
+  color: ${colors.textSoft};
 
   &[data-err="true"] {
     color: ${colors.danger};
@@ -110,4 +146,11 @@ export const Hint = styled.div`
     padding: 10px 12px;
     border-radius: 12px;
   }
+`;
+
+export const Footer = styled.div`
+  margin-top: 36px;
+  font-size: 14px;
+  color: ${colors.textSoft};
+  text-align: center;
 `;
