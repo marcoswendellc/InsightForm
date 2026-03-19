@@ -236,7 +236,11 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
       return;
     }
 
-    if (!currentFormId) return;
+    if (!currentFormId) {
+      setIsLoading(false);
+      setLoadError("Formulário não informado.");
+      return;
+    }
 
     let cancelled = false;
 
@@ -266,7 +270,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
         setLoadError(
           error instanceof Error
             ? error.message
-            : "Erro ao carregar resposta para impressão."
+            : "Erro ao carregar resposta para gerar PDF."
         );
       } finally {
         if (!cancelled) {
@@ -295,19 +299,31 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
   }, [form, responseData]);
 
   useEffect(() => {
-    if (isLoading || loadError || !responseData || isGeneratingPdf) return;
+    if (isLoading || loadError || !responseData || !contentRef.current || isGeneratingPdf) {
+      return;
+    }
 
     let cancelled = false;
 
-    const generatePdf = async () => {
-      const element = contentRef.current;
-      if (!element) return;
+    const waitForRender = () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
 
+    const generatePdf = async () => {
       try {
         setIsGeneratingPdf(true);
 
+        await waitForRender();
+        await document.fonts.ready;
+
+        const element = contentRef.current;
+        if (!element) return;
+
         const options = {
-          margin: [12, 12, 12, 12] as [number, number, number, number],
+          margin: [10, 10, 10, 10] as [number, number, number, number],
           filename: getPdfFileName(form, responseData),
           image: { type: "jpeg" as const, quality: 0.98 },
           html2canvas: {
@@ -318,10 +334,10 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
           jsPDF: {
             unit: "mm",
             format: "a4",
-            orientation: "portrait" as "portrait"
+            orientation: "portrait" as const
           },
           pagebreak: {
-            mode: ["css", "legacy"]
+            mode: ["css", "legacy"] as const
           }
         };
 
@@ -343,9 +359,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
       }
     };
 
-    const timer = window.setTimeout(() => {
-      generatePdf();
-    }, 150);
+    const timer = window.setTimeout(generatePdf, 350);
 
     return () => {
       cancelled = true;
@@ -374,89 +388,222 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
   }
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, background: "#f5f7fa" }}>
       <div style={{ marginBottom: 16, color: "#475467", fontWeight: 600 }}>
         {isGeneratingPdf ? "Gerando PDF..." : "Preparando download..."}
       </div>
 
       <div
         ref={contentRef}
-        className="print-doc"
         style={{
-          maxWidth: 820,
+          width: "210mm",
+          minHeight: "297mm",
           margin: "0 auto",
-          background: "#fff",
-          color: "#101828",
-          fontFamily: '"Times New Roman", Georgia, serif',
-          fontSize: 13,
-          lineHeight: 1.8,
-          padding: 24
+          background: "#ffffff",
+          color: "#111827",
+          fontFamily: '"Inter", "Segoe UI", Arial, sans-serif',
+          padding: "18mm 16mm",
+          boxSizing: "border-box"
         }}
       >
-        <header style={{ marginBottom: 28 }}>
+        <div
+          style={{
+            borderBottom: "3px solid #ED1C24",
+            paddingBottom: 18,
+            marginBottom: 24
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              color: "#ED1C24",
+              marginBottom: 8
+            }}
+          >
+            Relatório de resposta
+          </div>
+
           <h1
             style={{
               margin: 0,
-              fontSize: 20,
-              fontWeight: 700,
-              lineHeight: 1.3
+              fontSize: 24,
+              lineHeight: 1.25,
+              fontWeight: 800,
+              color: "#101828"
             }}
           >
             {form.title || responseData.form_title || "Formulário"}
           </h1>
 
-          <div style={{ marginTop: 14 }}>
-            <div>
-              <strong>Respondente:</strong> {respondentLabel}
-            </div>
-            <div>
-              <strong>Data da resposta:</strong>{" "}
-              {formatDateTime(responseData.submitted_at)}
-            </div>
-          </div>
-        </header>
-
-        {printableSections.length === 0 ? (
-          <p style={{ margin: 0, color: "#667085" }}>
-            Nenhuma resposta preenchida para exibir.
-          </p>
-        ) : (
-          printableSections.map((section, sectionIndex) => (
-            <section
-              key={section.id}
-              className="print-section"
-              style={{ marginBottom: 22 }}
+          <div
+            style={{
+              marginTop: 16,
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 12
+            }}
+          >
+            <div
+              style={{
+                border: "1px solid #E5E7EB",
+                borderRadius: 12,
+                padding: "12px 14px",
+                background: "#F9FAFB"
+              }}
             >
-              <h2
+              <div
                 style={{
-                  margin: "0 0 10px 0",
-                  fontSize: 17,
+                  fontSize: 11,
                   fontWeight: 700,
-                  lineHeight: 1.35
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  color: "#6B7280",
+                  marginBottom: 6
                 }}
               >
-                {section.title || `Seção ${sectionIndex + 1}`}
-              </h2>
+                Respondente
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
+                {respondentLabel}
+              </div>
+            </div>
 
-              <div style={{ display: "grid", gap: 10 }}>
-                {section.printableQuestions.map((question) => (
-                  <div key={question.id} className="print-question">
+            <div
+              style={{
+                border: "1px solid #E5E7EB",
+                borderRadius: 12,
+                padding: "12px 14px",
+                background: "#F9FAFB"
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  color: "#6B7280",
+                  marginBottom: 6
+                }}
+              >
+                Data da resposta
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#111827" }}>
+                {formatDateTime(responseData.submitted_at)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {printableSections.length === 0 ? (
+          <div
+            style={{
+              border: "1px solid #E5E7EB",
+              borderRadius: 14,
+              padding: 20,
+              background: "#FAFAFA",
+              color: "#667085",
+              fontSize: 14
+            }}
+          >
+            Nenhuma resposta preenchida para exibir.
+          </div>
+        ) : (
+          <div style={{ display: "grid", gap: 18 }}>
+            {printableSections.map((section, sectionIndex) => (
+              <section
+                key={section.id}
+                style={{
+                  border: "1px solid #E5E7EB",
+                  borderRadius: 16,
+                  overflow: "hidden",
+                  background: "#ffffff",
+                  pageBreakInside: "avoid"
+                }}
+              >
+                <div
+                  style={{
+                    background: "#F9FAFB",
+                    borderBottom: "1px solid #E5E7EB",
+                    padding: "14px 16px"
+                  }}
+                >
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: 17,
+                      lineHeight: 1.35,
+                      fontWeight: 800,
+                      color: "#111827"
+                    }}
+                  >
+                    {section.title || `Seção ${sectionIndex + 1}`}
+                  </h2>
+                </div>
+
+                <div style={{ padding: 16, display: "grid", gap: 14 }}>
+                  {section.printableQuestions.map((question, questionIndex) => (
                     <div
+                      key={question.id}
                       style={{
-                        fontWeight: 700,
-                        marginBottom: 4
+                        borderBottom:
+                          questionIndex < section.printableQuestions.length - 1
+                            ? "1px solid #F1F5F9"
+                            : "none",
+                        paddingBottom:
+                          questionIndex < section.printableQuestions.length - 1
+                            ? 14
+                            : 0
                       }}
                     >
-                      {question.label || "Pergunta sem título"}
-                    </div>
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: "#344054",
+                          marginBottom: 6
+                        }}
+                      >
+                        {question.label || "Pergunta sem título"}
+                      </div>
 
-                    <div style={{ whiteSpace: "pre-wrap" }}>{question.answer}</div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))
+                      <div
+                        style={{
+                          fontSize: 14,
+                          lineHeight: 1.7,
+                          color: "#111827",
+                          whiteSpace: "pre-wrap"
+                        }}
+                      >
+                        {question.answer}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
+
+        <div
+          style={{
+            marginTop: 28,
+            paddingTop: 14,
+            borderTop: "1px solid #E5E7EB",
+            fontSize: 11,
+            color: "#6B7280",
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 12,
+            flexWrap: "wrap"
+          }}
+        >
+          <span>Documento gerado automaticamente pelo sistema.</span>
+          <span>{formatDateTime(new Date().toISOString())}</span>
+        </div>
       </div>
     </div>
   );
