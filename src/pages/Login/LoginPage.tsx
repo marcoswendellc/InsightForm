@@ -77,7 +77,7 @@ export default function LoginPage() {
 
         <HeaderBlock>
           <Title>Bem-vindo</Title>
-          <Subtitle>Acesse o Briefing de Desdobramento Digital</Subtitle>
+          <Subtitle>Acesse o briefing de desdobramento digital</Subtitle>
         </HeaderBlock>
 
         <FormCard>

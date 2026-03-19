@@ -56,7 +56,7 @@ export const Brand = styled.div`
 `;
 
 export const Logo = styled.img`
-  height: 58px;
+  height: 75px;
   object-fit: contain;
   filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.06));
 
@@ -102,7 +102,7 @@ export const Label = styled.label`
   display: block;
   margin-bottom: 10px;
   font-size: 16px;
-  font-weight: 800;
+  font-weight: 600;
   color: ${colors.textStrong};
 `;
 
