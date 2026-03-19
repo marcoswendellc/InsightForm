@@ -1,29 +1,49 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
-import { getUserFromRequest, isPublishedStatus } from "../_auth.js";
+import { getUserFromRequest } from "../_auth.js";
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
 const PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-const TAB_NAME = "forms";
+const TAB_NAME = "responses";
 
 const HEADERS = [
   "id",
-  "title",
+  "form_id",
+  "form_title",
+  "submitted_at",
+  "respondent_id",
+  "respondent_name",
+  "respondent_email",
   "status",
-  "created_at",
-  "updated_at",
-  "published_at"
+  "source"
 ] as const;
+
+type ResponseRow = {
+  id: string;
+  form_id: string;
+  form_title: string;
+  submitted_at: string;
+  respondent_id: string;
+  respondent_name: string;
+  respondent_email: string;
+  status: string;
+  source: string;
+};
 
 function assertEnv() {
   if (!SHEET_ID) throw new Error("Missing GOOGLE_SHEET_ID");
-  if (!SERVICE_ACCOUNT_EMAIL) throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  if (!SERVICE_ACCOUNT_EMAIL) {
+    throw new Error("Missing GOOGLE_SERVICE_ACCOUNT_EMAIL");
+  }
   if (!PRIVATE_KEY) throw new Error("Missing GOOGLE_PRIVATE_KEY");
 }
 
-function rowToObject(headers: readonly string[], row: unknown[]) {
+function rowToObject(
+  headers: readonly string[],
+  row: unknown[]
+): Record<string, string> {
   const obj: Record<string, string> = {};
 
   headers.forEach((header, index) => {
@@ -48,7 +68,7 @@ async function getSheetsClient() {
 async function readTab(
   sheets: ReturnType<typeof google.sheets>,
   tabName: string
-) {
+): Promise<string[][]> {
   const resp = await sheets.spreadsheets.values.get({
     spreadsheetId: SHEET_ID!,
     range: `${tabName}!A:Z`
@@ -57,18 +77,27 @@ async function readTab(
   return (resp.data.values ?? []) as string[][];
 }
 
-function sortByUpdatedAtDesc(forms: any[]) {
-  return [...forms].sort((a, b) => {
-    const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-    const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+function sortBySubmittedAtDesc(rows: ResponseRow[]) {
+  return [...rows].sort((a, b) => {
+    const aTime = a.submitted_at ? new Date(a.submitted_at).getTime() : 0;
+    const bTime = b.submitted_at ? new Date(b.submitted_at).getTime() : 0;
 
     return bTime - aTime;
   });
 }
 
+function isResponseOwner(response: ResponseRow, user: any) {
+  return (
+    response.respondent_id === user.id ||
+    (!!user.username &&
+      !!response.respondent_email &&
+      response.respondent_email.toLowerCase() === user.username.toLowerCase())
+  );
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
-    return res.status(405).json({ ok: false });
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
 
   try {
@@ -81,37 +110,69 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       });
     }
 
+    const formId = String(req.query.formId ?? "").trim();
+
+    if (!formId) {
+      return res.status(400).json({
+        ok: false,
+        error: "formId é obrigatório."
+      });
+    }
+
     assertEnv();
 
     const sheets = await getSheetsClient();
     const rows = await readTab(sheets, TAB_NAME);
 
     if (rows.length === 0) {
-      return res.json({ ok: true, forms: [] });
+      return res.status(200).json({ ok: true, responses: [] });
     }
 
-    const allForms = rows
+    let responses: ResponseRow[] = rows
       .slice(1)
       .map((row) => rowToObject(HEADERS, row))
-      .filter((row) => row.id)
+      .filter((row) => row.id && row.form_id === formId)
       .map((row) => ({
         id: row.id,
-        title: row.title,
+        form_id: row.form_id,
+        form_title: row.form_title,
+        submitted_at: row.submitted_at,
+        respondent_id: row.respondent_id,
+        respondent_name: row.respondent_name,
+        respondent_email: row.respondent_email,
         status: row.status,
-        updated_at: row.updated_at
+        source: row.source
       }));
 
-    const visibleForms =
-      user.role === "admin"
-        ? allForms
-        : allForms.filter((form) => isPublishedStatus(form.status));
+    if (user.role !== "admin") {
+      responses = responses.filter((response) => isResponseOwner(response, user));
+    }
+
+    const sortedResponses = sortBySubmittedAtDesc(responses);
 
     return res.status(200).json({
       ok: true,
-      forms: sortByUpdatedAtDesc(visibleForms)
+      responses: sortedResponses.map((response) => {
+        const isOwner = isResponseOwner(response, user);
+        const canEdit = user.role === "admin" || isOwner;
+        const canPrint = user.role === "admin" || isOwner;
+        const canDelete = user.role === "admin" || isOwner;
+
+        return {
+          id: response.id,
+          user_name:
+            response.respondent_name ||
+            response.respondent_email ||
+            "Usuário sem identificação",
+          submitted_at: response.submitted_at,
+          can_edit: canEdit,
+          can_print: canPrint,
+          can_delete: canDelete
+        };
+      })
     });
   } catch (e: any) {
-    console.error("forms/list.ts error:", e);
+    console.error("responses/list.ts error:", e);
 
     return res.status(500).json({
       ok: false,

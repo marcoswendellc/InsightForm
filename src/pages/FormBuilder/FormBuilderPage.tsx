@@ -7,7 +7,8 @@ import {
   FloppyDisk,
   PaperPlaneTilt,
   ListBullets,
-  FilePdf
+  FilePdf,
+  Trash
 } from "phosphor-react";
 
 import { useAuth } from "../../auth/AuthContext";
@@ -42,6 +43,7 @@ type ListedResponse = {
   submitted_at?: string;
   can_edit?: boolean;
   can_print?: boolean;
+  can_delete?: boolean;
 };
 
 const listColors = {
@@ -54,6 +56,8 @@ const listColors = {
   text: "#202124",
   textSoft: "rgba(0,0,0,0.6)",
   danger: "#d93025",
+  dangerSoft: "rgba(217,48,37,0.08)",
+  dangerBorder: "rgba(217,48,37,0.18)",
   cardShadow: "0 10px 30px rgba(0,0,0,0.08)",
   neutralBorder: "1px solid rgba(0,0,0,0.08)",
   neutralButtonBorder: "1px solid rgba(0,0,0,0.12)"
@@ -99,7 +103,7 @@ function sortResponsesByDateDesc(list: ListedResponse[]) {
 
 function getModeFromParams(params: URLSearchParams): Mode {
   const mode = params.get("mode");
-  return ((mode as Mode | null) ?? "builder");
+  return (mode as Mode | null) ?? "builder";
 }
 
 function isPublishedStatus(status?: string) {
@@ -126,6 +130,7 @@ export default function FormBuilderPage() {
   const [loadingResponsesFormId, setLoadingResponsesFormId] = useState<string | null>(null);
   const [responsesByForm, setResponsesByForm] = useState<Record<string, ListedResponse[]>>({});
   const [responsesErrorByForm, setResponsesErrorByForm] = useState<Record<string, string>>({});
+  const [deletingResponseId, setDeletingResponseId] = useState<string | null>(null);
 
   const isAdmin = user?.role === "admin";
 
@@ -505,12 +510,11 @@ export default function FormBuilderPage() {
     );
   };
 
-  //aqui
   const handleOpenResponsePdf = (
     targetFormId: string,
     responseId: string,
     canPrint = true
-    ) => {
+  ) => {
     if (!targetFormId.trim() || !responseId.trim() || !canPrint) return;
 
     const url =
@@ -538,6 +542,54 @@ export default function FormBuilderPage() {
         document.body.removeChild(iframe);
       }
     }, 60000);
+  };
+
+  const handleDeleteResponse = async (
+    targetFormId: string,
+    responseId: string,
+    canDelete = true
+  ) => {
+    if (!targetFormId.trim() || !responseId.trim() || !canDelete) return;
+
+    const confirmed = window.confirm(
+      "Deseja realmente apagar esta resposta? Esta ação não poderá ser desfeita."
+    );
+
+    if (!confirmed) return;
+
+    setDeletingResponseId(responseId);
+
+    try {
+      const response = await fetch(
+        `/api/forms/responses/delete?formId=${encodeURIComponent(
+          targetFormId
+        )}&responseId=${encodeURIComponent(responseId)}`,
+        {
+          method: "DELETE",
+          headers: {
+            ...authHeader()
+          }
+        }
+      );
+
+      await parseJsonResponse(response);
+
+      setResponsesByForm((prev) => ({
+        ...prev,
+        [targetFormId]: (prev[targetFormId] ?? []).filter(
+          (item) => item.id !== responseId
+        )
+      }));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Erro ao excluir resposta.";
+
+      alert(message);
+    } finally {
+      setDeletingResponseId((current) =>
+        current === responseId ? null : current
+      );
+    }
   };
 
   const handleAddQuestion = (type: QuestionType) => {
@@ -797,112 +849,149 @@ export default function FormBuilderPage() {
                     gap: 10
                   }}
                 >
-                  {responses.map((response) => (
-                    <div
-                      key={response.id}
-                      style={{
-                        border: listColors.neutralBorder,
-                        borderRadius: 12,
-                        padding: 14,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 14,
-                        flexWrap: "wrap"
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 4,
-                          minWidth: 220,
-                          flex: 1
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 15,
-                            fontWeight: 700,
-                            color: listColors.text
-                          }}
-                        >
-                          {response.user_name || "Usuário sem nome"}
-                        </div>
+                  {responses.map((response) => {
+                    const isDeleting = deletingResponseId === response.id;
 
-                        <div
-                          style={{
-                            fontSize: 13,
-                            color: listColors.textSoft
-                          }}
-                        >
-                          Respondido em {formatDate(response.submitted_at)}
-                        </div>
-                      </div>
-
+                    return (
                       <div
+                        key={response.id}
                         style={{
+                          border: listColors.neutralBorder,
+                          borderRadius: 12,
+                          padding: 14,
                           display: "flex",
-                          gap: 8,
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 14,
                           flexWrap: "wrap"
                         }}
                       >
-                        {response.can_edit !== false && (
-                          <button
-                            onClick={() =>
-                              handleEditResponse(
-                                form.id,
-                                response.id,
-                                !!response.can_edit
-                              )
-                            }
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                            minWidth: 220,
+                            flex: 1
+                          }}
+                        >
+                          <div
                             style={{
-                              border: `1px solid ${listColors.primaryBorder}`,
-                              borderRadius: 10,
-                              padding: "9px 12px",
-                              background: "#fff",
-                              color: listColors.primary,
+                              fontSize: 15,
                               fontWeight: 700,
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8
+                              color: listColors.text
                             }}
                           >
-                            <PencilSimple size={16} weight="bold" />
-                            Editar
-                          </button>
-                        )}
+                            {response.user_name || "Usuário sem nome"}
+                          </div>
 
-                        {response.can_print !== false && (
-                          <button
-                            onClick={() =>
-                              handleOpenResponsePdf(
-                                form.id,
-                                response.id,
-                                !!response.can_print
-                              )
-                            }
+                          <div
                             style={{
-                              border: listColors.neutralButtonBorder,
-                              borderRadius: 10,
-                              padding: "9px 12px",
-                              background: "#fff",
-                              color: listColors.text,
-                              fontWeight: 700,
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 8
+                              fontSize: 13,
+                              color: listColors.textSoft
                             }}
                           >
-                            <FilePdf size={16} weight="bold" />
-                            PDF
-                          </button>
-                        )}
+                            Respondido em {formatDate(response.submitted_at)}
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 8,
+                            flexWrap: "wrap"
+                          }}
+                        >
+                          {response.can_edit !== false && (
+                            <button
+                              onClick={() =>
+                                handleEditResponse(
+                                  form.id,
+                                  response.id,
+                                  !!response.can_edit
+                                )
+                              }
+                              disabled={isDeleting}
+                              style={{
+                                border: `1px solid ${listColors.primaryBorder}`,
+                                borderRadius: 10,
+                                padding: "9px 12px",
+                                background: "#fff",
+                                color: listColors.primary,
+                                fontWeight: 700,
+                                cursor: isDeleting ? "not-allowed" : "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                opacity: isDeleting ? 0.6 : 1
+                              }}
+                            >
+                              <PencilSimple size={16} weight="bold" />
+                              Editar
+                            </button>
+                          )}
+
+                          {response.can_print !== false && (
+                            <button
+                              onClick={() =>
+                                handleOpenResponsePdf(
+                                  form.id,
+                                  response.id,
+                                  !!response.can_print
+                                )
+                              }
+                              disabled={isDeleting}
+                              style={{
+                                border: listColors.neutralButtonBorder,
+                                borderRadius: 10,
+                                padding: "9px 12px",
+                                background: "#fff",
+                                color: listColors.text,
+                                fontWeight: 700,
+                                cursor: isDeleting ? "not-allowed" : "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                opacity: isDeleting ? 0.6 : 1
+                              }}
+                            >
+                              <FilePdf size={16} weight="bold" />
+                              PDF
+                            </button>
+                          )}
+
+                          {response.can_delete !== false && (
+                            <button
+                              onClick={() =>
+                                handleDeleteResponse(
+                                  form.id,
+                                  response.id,
+                                  !!response.can_delete
+                                )
+                              }
+                              disabled={isDeleting}
+                              style={{
+                                border: `1px solid ${listColors.dangerBorder}`,
+                                borderRadius: 10,
+                                padding: "9px 12px",
+                                background: listColors.dangerSoft,
+                                color: listColors.danger,
+                                fontWeight: 700,
+                                cursor: isDeleting ? "not-allowed" : "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                opacity: isDeleting ? 0.7 : 1
+                              }}
+                            >
+                              <Trash size={16} weight="bold" />
+                              {isDeleting ? "Excluindo..." : "Excluir"}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

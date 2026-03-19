@@ -127,7 +127,6 @@ export default function LoginPage() {
                   alert("Fluxo de recuperação de senha ainda não implementado.");
                 }}
               >
-                Esqueci minha senha
               </SecondaryAction>
             </ActionsRow>
 
