@@ -466,6 +466,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(200).json({
         ok: true,
         mode: "create",
+        formId: body.formId,
         responseId
       });
     }
@@ -537,6 +538,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       ok: true,
       mode: "edit",
+      formId: body.formId,
       responseId: body.responseId
     });
   } catch (e: any) {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { FilePdf } from "phosphor-react";
 import { useAuth } from "../../../auth/AuthContext";
 import type { FormDefinition, Question } from "../types";
 import SectionPreview from "./SectionPreview";
@@ -61,6 +62,19 @@ async function parseJsonResponse(response: Response) {
   return data;
 }
 
+const uiColors = {
+  primary: "#ED1C24",
+  primaryHover: "#D71920",
+  primarySoft: "rgba(237,28,36,0.08)",
+  primaryBorder: "rgba(237,28,36,0.20)",
+  text: "#202124",
+  textSoft: "#5f6368",
+  danger: "#d93025",
+  warning: "#b26a00",
+  white: "#ffffff",
+  cardShadow: "0 1px 3px rgba(0,0,0,0.08)"
+};
+
 export default function FormResponsePage({ form }: Props) {
   const [params] = useSearchParams();
   const { user, authHeader } = useAuth();
@@ -72,6 +86,7 @@ export default function FormResponsePage({ form }: Props) {
   const [history, setHistory] = useState<number[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [savedResponseId, setSavedResponseId] = useState("");
 
   const [isLoadingExistingResponse, setIsLoadingExistingResponse] =
     useState(false);
@@ -84,6 +99,8 @@ export default function FormResponsePage({ form }: Props) {
   const currentFormId = form.id?.trim() || "";
   const section = form.sections[currentSectionIndex];
   const canSubmitForm = Boolean(currentFormId);
+
+  const effectiveResponseId = savedResponseId || responseId;
 
   const isLast = useMemo(() => {
     const next = getNextSectionIndex(form, currentSectionIndex, answers);
@@ -102,6 +119,7 @@ export default function FormResponsePage({ form }: Props) {
     setSubmitError("");
     setLoadExistingResponseError("");
     setIsLoadingExistingResponse(false);
+    setSavedResponseId("");
   }, [form.id]);
 
   useEffect(() => {
@@ -138,6 +156,7 @@ export default function FormResponsePage({ form }: Props) {
         setCurrentSectionIndex(0);
         setHistory([]);
         setErrors({});
+        setSavedResponseId(data.response?.id ?? responseId);
       } catch (error) {
         if (cancelled) return;
 
@@ -229,7 +248,7 @@ export default function FormResponsePage({ form }: Props) {
       body: JSON.stringify(payload)
     });
 
-    await parseJsonResponse(response);
+    return parseJsonResponse(response);
   };
 
   const handleNext = async () => {
@@ -254,7 +273,12 @@ export default function FormResponsePage({ form }: Props) {
     if (shouldSubmit) {
       try {
         setIsSubmitting(true);
-        await submitForm();
+        const data = await submitForm();
+
+        const nextResponseId =
+          data?.responseId || data?.id || data?.response?.id || responseId || "";
+
+        setSavedResponseId(nextResponseId);
         setSubmitted(true);
       } catch (error) {
         const message =
@@ -272,16 +296,37 @@ export default function FormResponsePage({ form }: Props) {
     }
   };
 
-  const handleRestart = () => {
-    setSubmitted(false);
-    setCurrentSectionIndex(0);
-    setErrors({});
-    setHistory([]);
-    setSubmitError("");
-
-    if (!isEditResponse) {
-      setAnswers({});
+  const handleOpenPdf = () => {
+    if (!currentFormId || !effectiveResponseId) {
+      setSubmitError("Não foi possível localizar a resposta para gerar o PDF.");
+      return;
     }
+
+    const url =
+      `/response-print?formId=${encodeURIComponent(currentFormId)}` +
+      `&responseId=${encodeURIComponent(effectiveResponseId)}`;
+
+    const iframe = document.createElement("iframe");
+
+    iframe.src = url;
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.top = "-10000px";
+    iframe.style.left = "-10000px";
+    iframe.style.width = "210mm";
+    iframe.style.height = "297mm";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+    iframe.style.border = "0";
+    iframe.style.background = "#fff";
+
+    document.body.appendChild(iframe);
+
+    window.setTimeout(() => {
+      if (document.body.contains(iframe)) {
+        document.body.removeChild(iframe);
+      }
+    }, 60000);
   };
 
   if (!section && !isLoadingExistingResponse) {
@@ -292,19 +337,19 @@ export default function FormResponsePage({ form }: Props) {
     return (
       <div
         style={{
-          background: "#fff",
+          background: uiColors.white,
           borderRadius: 12,
           padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
+          boxShadow: uiColors.cardShadow
         }}
       >
         <h2
-          style={{ margin: 0, fontSize: 24, fontWeight: 500, color: "#202124" }}
+          style={{ margin: 0, fontSize: 24, fontWeight: 600, color: uiColors.text }}
         >
           Carregando resposta
         </h2>
 
-        <p style={{ marginTop: 12, color: "#5f6368", lineHeight: 1.5 }}>
+        <p style={{ marginTop: 12, color: uiColors.textSoft, lineHeight: 1.5 }}>
           Aguarde enquanto buscamos os dados para edição.
         </p>
       </div>
@@ -315,19 +360,19 @@ export default function FormResponsePage({ form }: Props) {
     return (
       <div
         style={{
-          background: "#fff",
+          background: uiColors.white,
           borderRadius: 12,
           padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
+          boxShadow: uiColors.cardShadow
         }}
       >
         <h2
-          style={{ margin: 0, fontSize: 24, fontWeight: 500, color: "#202124" }}
+          style={{ margin: 0, fontSize: 24, fontWeight: 600, color: uiColors.text }}
         >
           Não foi possível carregar a resposta
         </h2>
 
-        <p style={{ marginTop: 12, color: "#d93025", lineHeight: 1.5 }}>
+        <p style={{ marginTop: 12, color: uiColors.danger, lineHeight: 1.5 }}>
           {loadExistingResponseError}
         </p>
       </div>
@@ -338,39 +383,51 @@ export default function FormResponsePage({ form }: Props) {
     return (
       <div
         style={{
-          background: "#fff",
+          background: uiColors.white,
           borderRadius: 12,
           padding: 24,
-          boxShadow: "0 1px 3px rgba(0,0,0,0.08)"
+          boxShadow: uiColors.cardShadow
         }}
       >
         <h2
-          style={{ margin: 0, fontSize: 24, fontWeight: 500, color: "#202124" }}
+          style={{ margin: 0, fontSize: 24, fontWeight: 600, color: uiColors.text }}
         >
           {isEditResponse ? "Resposta atualizada" : "Resposta enviada"}
         </h2>
 
-        <p style={{ marginTop: 12, color: "#5f6368", lineHeight: 1.5 }}>
+        <p style={{ marginTop: 12, color: uiColors.textSoft, lineHeight: 1.5 }}>
           {isEditResponse
             ? "As alterações foram salvas com sucesso."
             : "Sua resposta foi registrada com sucesso."}
         </p>
 
-        <button
-          onClick={handleRestart}
+        <div
           style={{
             marginTop: 20,
-            background: "#673ab7",
-            color: "#fff",
-            border: "none",
-            borderRadius: 8,
-            padding: "10px 18px",
-            fontWeight: 600,
-            cursor: "pointer"
+            display: "flex",
+            gap: 12,
+            flexWrap: "wrap"
           }}
         >
-          {isEditResponse ? "Continuar revisando" : "Responder novamente"}
-        </button>
+          <button
+            onClick={handleOpenPdf}
+            style={{
+              background: uiColors.primary,
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              padding: "10px 18px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8
+            }}
+          >
+            <FilePdf size={18} weight="bold" />
+            Gerar PDF
+          </button>
+        </div>
       </div>
     );
   }
@@ -381,8 +438,9 @@ export default function FormResponsePage({ form }: Props) {
         <div
           style={{
             marginBottom: 14,
-            background: "rgba(103,58,183,0.08)",
-            color: "#673ab7",
+            background: uiColors.primarySoft,
+            color: uiColors.primary,
+            border: `1px solid ${uiColors.primaryBorder}`,
             borderRadius: 10,
             padding: "12px 14px",
             fontSize: 13,
@@ -407,7 +465,7 @@ export default function FormResponsePage({ form }: Props) {
             marginTop: 14,
             fontSize: 13,
             fontWeight: 500,
-            color: "#b26a00"
+            color: uiColors.warning
           }}
         >
           Salve o formulário antes de responder.
@@ -420,7 +478,7 @@ export default function FormResponsePage({ form }: Props) {
             marginTop: 14,
             fontSize: 13,
             fontWeight: 500,
-            color: "#d93025"
+            color: uiColors.danger
           }}
         >
           {submitError}
@@ -442,10 +500,10 @@ export default function FormResponsePage({ form }: Props) {
               disabled={isSubmitting}
               style={{
                 background: "transparent",
-                color: "#673ab7",
+                color: uiColors.primary,
                 border: "none",
                 padding: "10px 0",
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: isSubmitting ? "not-allowed" : "pointer",
                 opacity: isSubmitting ? 0.6 : 1
               }}
@@ -459,12 +517,12 @@ export default function FormResponsePage({ form }: Props) {
           onClick={handleNext}
           disabled={isSubmitting || isLoadingExistingResponse}
           style={{
-            background: "#673ab7",
+            background: uiColors.primary,
             color: "#fff",
             border: "none",
             borderRadius: 8,
             padding: "10px 20px",
-            fontWeight: 600,
+            fontWeight: 700,
             cursor:
               isSubmitting || isLoadingExistingResponse
                 ? "not-allowed"
@@ -477,10 +535,10 @@ export default function FormResponsePage({ form }: Props) {
               ? "Salvando..."
               : "Enviando..."
             : isLast
-            ? isEditResponse
-              ? "Salvar alterações"
-              : "Enviar"
-            : "Avançar"}
+              ? isEditResponse
+                ? "Salvar alterações"
+                : "Enviar"
+              : "Avançar"}
         </button>
       </div>
     </div>
