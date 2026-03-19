@@ -74,7 +74,7 @@ export const Title = styled.h1`
   margin: 0;
   font-size: 40px;
   line-height: 1.05;
-  font-weight: 800;
+  font-weight: 700;
   color: ${colors.textStrong};
 
   @media (max-width: 640px) {
