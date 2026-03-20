@@ -7,23 +7,22 @@ export const Layout = styled.div`
 `;
 
 export const Topbar = styled.header`
-  height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 12px 24px;
   background: #ffffff;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 2px solid #ED1C24;
   position: sticky;
   top: 0;
   z-index: 20;
+  min-height: 70px;
 
   @media (max-width: 768px) {
-    height: auto;
-    min-height: 72px;
-    padding: 14px 16px;
+    padding: 12px 16px;
     flex-wrap: wrap;
     gap: 12px;
+    min-height: auto;
   }
 `;
 
@@ -38,9 +37,15 @@ export const BrandMark = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding-right: 18px;
+  padding-right: 16px;
   border-right: 1px solid #e5e7eb;
   flex-shrink: 0;
+  
+  img {
+    width: 32px;
+    height: 32px;
+    object-fit: contain;
+  }
 `;
 
 export const BrandText = styled.div`
@@ -48,7 +53,7 @@ export const BrandText = styled.div`
 `;
 
 export const BrandTitle = styled.div`
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   color: #111827;
   line-height: 1.2;
