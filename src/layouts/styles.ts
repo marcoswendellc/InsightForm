@@ -6,11 +6,11 @@ export const Layout = styled.div`
 `;
 
 export const Topbar = styled.header`
-  height: 88px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 28px;
+  padding: 0 20px;
   background: #ffffff;
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
@@ -29,7 +29,7 @@ export const Topbar = styled.header`
 export const Brand = styled.div`
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
   min-width: 0;
 `;
 
