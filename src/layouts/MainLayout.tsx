@@ -14,7 +14,7 @@ export function MainLayout() {
       <Topbar>
         <Brand>
           <BrandMark>
-            <img src={logoTerral} alt="TERRAL" width="32" height="32" />
+            <img src={logoTerral} alt="TERRAL" width="40" height="40" />
           </BrandMark>
           <BrandText>
             <BrandTitle>Formulários</BrandTitle>
