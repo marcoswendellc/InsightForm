@@ -45,7 +45,7 @@ export const PreviewQuestionShell = styled.div`
 
 export const PreviewQuestionLabel = styled.div`
   font-size: 16px;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.45;
   color: #202124;
   margin-bottom: 14px;
