@@ -41,7 +41,7 @@ export function MainLayout() {
           </BrandMark>
 
           <BrandText>
-            <BrandTitle>Formulários</BrandTitle>
+            <BrandTitle></BrandTitle>
             <BrandSubtitle>Sistema de Briefing Digital</BrandSubtitle>
           </BrandText>
         </Brand>

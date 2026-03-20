@@ -1,68 +1,60 @@
-import { useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
-import logo from "../../assets/logo-terral.png";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import logoTerral from "../../assets/logo-terral.png";
+
 import {
   Page,
-  Shell,
-  Brand,
-  Logo,
-  HeaderBlock,
+  Aside,
+  AsideInner,
+  BrandRow,
+  BrandMark,
+  BrandText,
+  BrandTitle,
+  HeroCard,
+  HeroTitle,
+  HeroText,
+  Bullets,
+  Bullet,
+  Main,
+  LoginCard,
+  MobileBrand,
+  MobileBrandRow,
+  MobileBrandMark,
+  MobileBrandText,
+  MobileBrandTitle,
+  CardHeader,
   Title,
   Subtitle,
-  FormCard,
   Form,
-  FieldGroup,
-  Label,
   Field,
-  Btn,
-  Hint,
-  Footer,
-  ActionsRow,
-  SecondaryAction,
-  Spinner,
-  ErrorIcon
+  Label,
+  Input,
+  ErrorText,
+  SubmitButton,
+  FooterText
 } from "./styles";
 
-type LocationState = {
-  from?: string;
-};
-
 export default function LoginPage() {
-  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const from = (location.state as LocationState | null)?.from || "/builder";
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      navigate("/builder", { replace: true });
-    }
-  }, [isAuthenticated, navigate]);
-
-  async function handleLogin() {
-    if (loading) return;
-
-    setError(null);
-    setLoading(true);
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError("");
 
     try {
-      const res = await login(username.trim(), password);
+      setLoading(true);
 
-      if (!res.ok) {
-        setError(res.message || "Usuário ou senha inválidos.");
-        return;
-      }
+      // coloque aqui sua lógica real de login
+      await new Promise((resolve) => setTimeout(resolve, 800));
 
-      navigate(from, { replace: true });
+      navigate("/");
     } catch {
-      setError("Não foi possível entrar agora. Tente novamente em instantes.");
+      setError("Não foi possível entrar. Verifique suas credenciais.");
     } finally {
       setLoading(false);
     }
@@ -70,91 +62,92 @@ export default function LoginPage() {
 
   return (
     <Page>
-      <Shell>
-        <Brand>
-          <Logo src={logo} alt="Terral Shopping Centers" />
-        </Brand>
+      <Aside>
+        <AsideInner>
+          <BrandRow>
+            <BrandMark>
+              <img src={logoTerral} alt="Terral Shopping Centers" />
+            </BrandMark>
 
-        <HeaderBlock>
-          <Title>Bem-vindo</Title>
-          <Subtitle>Acesse o briefing de desdobramento digital</Subtitle>
-        </HeaderBlock>
+            <BrandText>
+              <BrandTitle>Sistema de briefing digital</BrandTitle>
+            </BrandText>
+          </BrandRow>
 
-        <FormCard>
-          <Form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleLogin();
-            }}
-          >
-            <FieldGroup>
-              <Label htmlFor="username">Login</Label>
-              <Field
-                id="username"
-                name="username"
+          <HeroCard>
+            <HeroTitle>
+              Crie briefings de forma simples <br></br>e padronizada
+            </HeroTitle>
+
+            <HeroText>
+              Responda perguntas guiadas para organizar sua solicitação.
+            </HeroText>
+
+            <Bullets>
+              <Bullet>Perguntas certas para cada tipo de demanda</Bullet>
+              <Bullet>Menos erros e retrabalhos nas solicitações</Bullet>
+              <Bullet>Documento final pronto para compartilhar</Bullet>
+            </Bullets>
+          </HeroCard>
+        </AsideInner>
+      </Aside>
+
+      <Main>
+        <LoginCard>
+          <MobileBrand>
+            <MobileBrandRow>
+              <MobileBrandMark>
+                <img src={logoTerral} alt="Terral Shopping Centers" />
+              </MobileBrandMark>
+
+              <MobileBrandText>
+                <MobileBrandTitle>Sistema de briefing digital</MobileBrandTitle>
+              </MobileBrandText>
+            </MobileBrandRow>
+          </MobileBrand>
+
+          <CardHeader>
+            <Title>Entrar</Title>
+            <Subtitle>
+              Use suas credenciais para acessar a plataforma.
+            </Subtitle>
+          </CardHeader>
+
+          <Form onSubmit={handleSubmit}>
+            <Field>
+              <Label htmlFor="email">E-mail</Label>
+              <Input
+                id="email"
                 type="email"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                placeholder="seu@email.com"
-                autoComplete="email"
-                disabled={loading}
+                placeholder="seu.email@terral.com.br"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
               />
-            </FieldGroup>
+            </Field>
 
-            <FieldGroup>
+            <Field>
               <Label htmlFor="password">Senha</Label>
-              <Field
+              <Input
                 id="password"
-                name="password"
                 type="password"
+                placeholder="Digite sua senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                autoComplete="current-password"
-                disabled={loading}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading) {
-                    handleLogin();
-                  }
-                }}
               />
-            </FieldGroup>
+            </Field>
 
-            <ActionsRow>
-              <SecondaryAction
-                type="button"
-                onClick={() => {
-                  alert("Fluxo de recuperação de senha ainda não implementado.");
-                }}
-              >
-              </SecondaryAction>
-            </ActionsRow>
+            {error && <ErrorText>{error}</ErrorText>}
 
-            {error && (
-              <Hint data-err="true">
-                <ErrorIcon>⚠</ErrorIcon>
-                <div>
-                  <div style={{ fontWeight: 700 }}>Não foi possível entrar.</div>
-                  <div>{error}</div>
-                </div>
-              </Hint>
-            )}
-
-            <Btn type="submit" disabled={loading}>
-              {loading ? (
-                <>
-                  <Spinner />
-                  Entrando...
-                </>
-              ) : (
-                "Entrar"
-              )}
-            </Btn>
+            <SubmitButton type="submit" disabled={loading}>
+              {loading ? "Entrando..." : "Entrar"}
+            </SubmitButton>
           </Form>
-        </FormCard>
 
-        <Footer>© 2026 Terral Shopping Centers</Footer>
-      </Shell>
+          <FooterText>
+            Terral Shopping Centers • Plataforma interna
+          </FooterText>
+        </LoginCard>
+      </Main>
     </Page>
   );
 }
