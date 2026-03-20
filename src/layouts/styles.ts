@@ -3,7 +3,6 @@ import styled from "styled-components";
 export const Layout = styled.div`
   min-height: 100vh;
   background: #f3f4f6;
-  zoom: 110%;
 `;
 
 export const Topbar = styled.header`
@@ -12,7 +11,7 @@ export const Topbar = styled.header`
   justify-content: space-between;
   padding: 12px 24px;
   background: #ffffff;
-  border-bottom: 2px solid #ED1C24;
+  border-bottom: 2px solid #ed1c24;
   position: sticky;
   top: 0;
   z-index: 20;
@@ -40,13 +39,20 @@ export const BrandMark = styled.div`
   padding-right: 16px;
   border-right: 1px solid #e5e7eb;
   flex-shrink: 0;
-  
+
   img {
-    width: 64px;
-    height: 64px;
+    display: block;
+    width: 140px;
+    height: auto;
+    max-width: 100%;
     object-fit: contain;
-    image-rendering: crisp-edges;
-    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.05));
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
+  }
+
+  @media (max-width: 768px) {
+    img {
+      width: 110px;
+    }
   }
 `;
 
