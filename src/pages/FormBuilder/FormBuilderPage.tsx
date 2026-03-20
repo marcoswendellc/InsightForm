@@ -720,7 +720,7 @@ export default function FormBuilderPage() {
                   fontWeight: 700
                 }}
               >
-                <ClipboardText size={28} weight="duotone" />
+                <ClipboardText size={35} weight="duotone" />
               </div>
 
               <div>
