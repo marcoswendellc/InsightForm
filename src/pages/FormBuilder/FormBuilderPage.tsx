@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import formIcon from "../../assets/form-icon.png";
 import {
   PencilSimple,
   Eye,
@@ -717,7 +718,15 @@ export default function FormBuilderPage() {
                   fontWeight: 700
                 }}
               >
-                F
+                <img
+                  src={formIcon}
+                  alt="Ícone do formulário"
+                  style={{
+                    width: 22,
+                    height: 22,
+                    objectFit: "contain"
+                  }}
+                />
               </div>
 
               <div>
