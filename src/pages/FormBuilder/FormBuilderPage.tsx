@@ -712,15 +712,15 @@ export default function FormBuilderPage() {
                   width: 42,
                   height: 42,
                   borderRadius: 12,
-                  background: listColors.primaryIconBg,
+                  background: listColors.primary,
                   display: "grid",
                   placeItems: "center",
-                  color: listColors.primary,
+                  color: "white",
                   fontSize: 18,
                   fontWeight: 700
                 }}
               >
-                <ClipboardText size={22} weight="duotone" />
+                <ClipboardText size={28} weight="duotone" />
               </div>
 
               <div>
