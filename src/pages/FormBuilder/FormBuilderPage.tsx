@@ -1181,16 +1181,6 @@ export default function FormBuilderPage() {
           </div>
 
           <Actions>
-            {!isPreview && !isRespond && isAdmin && (
-              <IconBtn
-                title={isSaving ? "Salvando..." : "Salvar"}
-                onClick={handleSave}
-                disabled={isSaving || isLoadingForm}
-              >
-                <FloppyDisk size={20} weight="bold" />
-              </IconBtn>
-            )}
-
             <IconBtn
               title="Página inicial"
               onClick={handleBackToList}
@@ -1201,31 +1191,24 @@ export default function FormBuilderPage() {
 
             {isAdmin && !isRespond && (
               <>
-                <IconBtn
-                  title="Editar"
-                  data-active={!isPreview}
-                  onClick={() => setMode("builder")}
-                  disabled={isLoadingForm}
-                >
-                  <PencilSimple size={20} weight="bold" />
-                </IconBtn>
-
-                <IconBtn
-                  title="Visualizar"
-                  data-active={isPreview}
-                  onClick={() => setMode("preview")}
-                  disabled={isLoadingForm}
-                >
-                  <Eye size={20} weight="bold" />
-                </IconBtn>
-
-                <IconBtn
-                  title="Responder"
-                  onClick={() => setMode("respond")}
-                  disabled={isLoadingForm}
-                >
-                  <PaperPlaneTilt size={20} weight="bold" />
-                </IconBtn>
+                {isPreview ? (
+                  <IconBtn
+                    title="Voltar para edição"
+                    onClick={() => setMode("builder")}
+                    disabled={isLoadingForm}
+                  >
+                    <PencilSimple size={20} weight="bold" />
+                  </IconBtn>
+                ) : (
+                  <IconBtn
+                    title="Visualizar"
+                    data-active={isPreview}
+                    onClick={() => setMode("preview")}
+                    disabled={isLoadingForm}
+                  >
+                    <Eye size={20} weight="bold" />
+                  </IconBtn>
+                )}
 
                 <IconBtn
                   title={isPublished ? "Voltar para edição" : "Publicar formulário"}
@@ -1242,6 +1225,16 @@ export default function FormBuilderPage() {
                 <IconBtn title="Novo formulário" onClick={handleNew}>
                   <FileText size={20} weight="bold" />
                 </IconBtn>
+
+                {!isPreview && (
+                  <IconBtn
+                    title={isSaving ? "Salvando..." : "Salvar"}
+                    onClick={handleSave}
+                    disabled={isSaving || isLoadingForm}
+                  >
+                    <FloppyDisk size={20} weight="bold" />
+                  </IconBtn>
+                )}
               </>
             )}
           </Actions>
