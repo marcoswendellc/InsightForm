@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import formIcon from "../../assets/form-icon.png";
+import { ClipboardText } from "phosphor-react";
 import {
   PencilSimple,
   Eye,
@@ -720,15 +720,7 @@ export default function FormBuilderPage() {
                   fontWeight: 700
                 }}
               >
-                <img
-                  src={formIcon}
-                  alt="Ícone do formulário"
-                  style={{
-                    width: 26,
-                    height: 26,
-                    objectFit: "contain"
-                  }}
-                />
+                <ClipboardText size={22} weight="duotone" />
               </div>
 
               <div>
