@@ -1200,40 +1200,40 @@ export default function FormBuilderPage() {
                     <PencilSimple size={20} weight="bold" />
                   </IconBtn>
                 ) : (
-                  <IconBtn
-                    title="Visualizar"
-                    data-active={isPreview}
-                    onClick={() => setMode("preview")}
-                    disabled={isLoadingForm}
-                  >
-                    <Eye size={20} weight="bold" />
-                  </IconBtn>
-                )}
+                  <>
+                    <IconBtn
+                      title="Visualizar"
+                      data-active={isPreview}
+                      onClick={() => setMode("preview")}
+                      disabled={isLoadingForm}
+                    >
+                      <Eye size={20} weight="bold" />
+                    </IconBtn>
 
-                <IconBtn
-                  title={isPublished ? "Voltar para edição" : "Publicar formulário"}
-                  onClick={handleTogglePublish}
-                  disabled={isLoadingForm || !formId}
-                >
-                  {isPublished ? (
-                    <PencilSimple size={20} weight="bold" />
-                  ) : (
-                    <PaperPlaneTilt size={20} weight="bold" />
-                  )}
-                </IconBtn>
+                    <IconBtn
+                      title={isPublished ? "Voltar para edição" : "Publicar formulário"}
+                      onClick={handleTogglePublish}
+                      disabled={isLoadingForm || !formId}
+                    >
+                      {isPublished ? (
+                        <PencilSimple size={20} weight="bold" />
+                      ) : (
+                        <PaperPlaneTilt size={20} weight="bold" />
+                      )}
+                    </IconBtn>
 
-                <IconBtn title="Novo formulário" onClick={handleNew}>
-                  <FileText size={20} weight="bold" />
-                </IconBtn>
+                    <IconBtn title="Novo formulário" onClick={handleNew}>
+                      <FileText size={20} weight="bold" />
+                    </IconBtn>
 
-                {!isPreview && (
-                  <IconBtn
-                    title={isSaving ? "Salvando..." : "Salvar"}
-                    onClick={handleSave}
-                    disabled={isSaving || isLoadingForm}
-                  >
-                    <FloppyDisk size={20} weight="bold" />
-                  </IconBtn>
+                    <IconBtn
+                      title={isSaving ? "Salvando..." : "Salvar"}
+                      onClick={handleSave}
+                      disabled={isSaving || isLoadingForm}
+                    >
+                      <FloppyDisk size={20} weight="bold" />
+                    </IconBtn>
+                  </>
                 )}
               </>
             )}
