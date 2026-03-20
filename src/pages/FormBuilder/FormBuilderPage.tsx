@@ -8,6 +8,7 @@ import {
   FloppyDisk,
   PaperPlaneTilt,
   ListBullets,
+  ClockCounterClockwise,
   FilePdf,
   Trash
 } from "phosphor-react";
@@ -1211,12 +1212,12 @@ export default function FormBuilderPage() {
                     </IconBtn>
 
                     <IconBtn
-                      title={isPublished ? "Voltar para edição" : "Publicar formulário"}
+                      title={isPublished ? "Voltar para rascunho" : "Publicar formulário"}
                       onClick={handleTogglePublish}
                       disabled={isLoadingForm || !formId}
-                    >
+                      >
                       {isPublished ? (
-                        <PencilSimple size={20} weight="bold" />
+                        <ClockCounterClockwise size={20} weight="bold" />
                       ) : (
                         <PaperPlaneTilt size={20} weight="bold" />
                       )}
