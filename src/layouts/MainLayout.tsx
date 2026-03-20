@@ -1,5 +1,7 @@
 import { Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
+import logoTerral from "../assets/logo-terral.png";
+
 import {
   Layout,
   Topbar,
@@ -10,10 +12,21 @@ import {
   BrandSubtitle,
   Content,
   Right,
+  UserBlock,
+  UserAvatar,
   Chip,
   Btn
 } from "./styles";
-import logoTerral from "../assets/logo-terral.png";
+
+function getInitials(name?: string) {
+  if (!name) return "U";
+
+  const parts = name.trim().split(" ").filter(Boolean);
+  const first = parts[0]?.[0] ?? "";
+  const second = parts[1]?.[0] ?? "";
+
+  return `${first}${second}`.toUpperCase();
+}
 
 export function MainLayout() {
   const { user, logout } = useAuth();
@@ -24,7 +37,7 @@ export function MainLayout() {
       <Topbar>
         <Brand>
           <BrandMark>
-            <img src={logoTerral} alt="TERRAL" />
+            <img src={logoTerral} alt="Terral Shopping Centers" />
           </BrandMark>
 
           <BrandText>
@@ -34,9 +47,15 @@ export function MainLayout() {
         </Brand>
 
         <Right>
-          <Chip>
-            {user?.name} • {user?.role}
-          </Chip>
+          <UserBlock>
+            <UserAvatar>{getInitials(user?.name)}</UserAvatar>
+
+            <Chip>
+              <strong>{user?.name ?? "Usuário"}</strong>
+              <span>•</span>
+              {user?.role ?? "perfil"}
+            </Chip>
+          </UserBlock>
 
           <Btn
             onClick={() => {
