@@ -734,16 +734,18 @@ export default function FormBuilderPage() {
                   {form.title || "Formulário sem título"}
                 </div>
 
-                <div
-                  style={{
-                    marginTop: 4,
-                    fontSize: 13,
-                    color: listColors.textSoft
-                  }}
-                >
-                  Atualizado em {formatDate(form.updated_at)}
-                  {form.status ? ` • ${form.status}` : ""}
-                </div>
+                {isAdmin && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      fontSize: 13,
+                      color: listColors.textSoft
+                    }}
+                  >
+                    Atualizado em {formatDate(form.updated_at)}
+                    {form.status ? ` • ${form.status}` : ""}
+                  </div>
+                )}
               </div>
             </div>
 
