@@ -13,6 +13,7 @@ import {
 } from "phosphor-react";
 
 import { useAuth } from "../../auth/AuthContext";
+import { apiUrl } from "../../api";
 import FormPreview from "./components/FormPreview";
 import FormResponsePage from "./components/FormResponsePage";
 import SideToolbar from "./components/SideToolbar";
@@ -251,7 +252,7 @@ export default function FormBuilderPage() {
       setFormsError("");
 
       try {
-        const response = await fetch("/api/forms/list", {
+        const response = await fetch(apiUrl("/api/forms/list"), {
           headers: {
             ...authHeader()
           }
@@ -364,7 +365,7 @@ export default function FormBuilderPage() {
         form: state.form
       };
 
-      const response = await fetch("/api/forms/save", {
+      const response = await fetch(apiUrl("/api/forms/save"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -401,7 +402,7 @@ export default function FormBuilderPage() {
 
       const nextStatus = isPublished ? "draft" : "published";
 
-      const response = await fetch("/api/forms/status", {
+      const response = await fetch(apiUrl("/api/forms/status"), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

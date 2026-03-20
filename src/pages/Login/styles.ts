@@ -20,8 +20,8 @@ export const Aside = styled.aside`
   overflow: hidden;
 
   background:
-    radial-gradient(circle at top left, rgba(237, 28, 36, 0.10), transparent 35%),
-    radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.10), transparent 30%),
+    radial-gradient(circle at top left, rgba(237, 28, 36, 0.1), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(245, 158, 11, 0.1), transparent 30%),
     linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
 
   @media (max-width: 900px) {
@@ -43,7 +43,7 @@ export const BrandRow = styled.div`
   display: flex;
   align-items: center;
   gap: 18px;
-  margin-bottom: 36px;
+  margin-bottom: 32px;
 `;
 
 export const BrandMark = styled.div`
@@ -56,7 +56,7 @@ export const BrandMark = styled.div`
 
   img {
     display: block;
-    width: 130px;
+    width: 118px;
     height: auto;
     object-fit: contain;
   }
@@ -68,24 +68,17 @@ export const BrandText = styled.div`
 
 export const BrandTitle = styled.h1`
   margin: 0;
-  font-size: 25px;
-  line-height: 1.05;
-  font-weight: 300;
+  font-size: 24px;
+  line-height: 1.1;
+  font-weight: 600;
   letter-spacing: -0.02em;
   color: #111827;
-`;
-
-export const BrandSubtitle = styled.p`
-  margin: 6px 0 0;
-  font-size: 15px;
-  line-height: 1.45;
-  color: #6b7280;
 `;
 
 export const HeroCard = styled.div`
   padding: 28px;
   border-radius: 28px;
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(255, 255, 255, 0.8);
   border: 1px solid rgba(229, 231, 235, 0.95);
   box-shadow:
     0 10px 30px rgba(17, 24, 39, 0.06),
@@ -93,23 +86,10 @@ export const HeroCard = styled.div`
   backdrop-filter: blur(8px);
 `;
 
-export const HeroEyebrow = styled.div`
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(237, 28, 36, 0.08);
-  color: #b91c1c;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-`;
-
 export const HeroTitle = styled.h2`
-  margin: 0px 0 25px;
-  font-size: 34px;
-  line-height: 1.1;
+  margin: 0 0 18px;
+  font-size: 32px;
+  line-height: 1.12;
   font-weight: 700;
   letter-spacing: -0.03em;
   color: #111827;
@@ -117,15 +97,15 @@ export const HeroTitle = styled.h2`
 
 export const HeroText = styled.p`
   margin: 0;
-  font-size: 16px;
-  line-height: 1.7;
+  font-size: 15px;
+  line-height: 1.65;
   color: #4b5563;
 `;
 
 export const Bullets = styled.div`
   display: grid;
   gap: 12px;
-  margin-top: 25px;
+  margin-top: 22px;
 `;
 
 export const Bullet = styled.div`
@@ -150,17 +130,27 @@ export const Main = styled.main`
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 24px 24px 40px;
+
+  @media (max-width: 900px) {
+    align-items: center;
+    padding: 24px 16px;
+  }
 `;
 
 export const LoginCard = styled.div`
   width: 100%;
   max-width: 430px;
+  margin-top: 32px;
   padding: 30px;
   border-radius: 28px;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid #e5e7eb;
   box-shadow: 0 18px 45px rgba(17, 24, 39, 0.08);
+
+  @media (max-width: 900px) {
+    margin-top: 0;
+  }
 
   @media (max-width: 480px) {
     padding: 22px;
@@ -170,7 +160,7 @@ export const LoginCard = styled.div`
 
 export const MobileBrand = styled.div`
   display: none;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 
   @media (max-width: 900px) {
     display: block;
@@ -193,7 +183,7 @@ export const MobileBrandMark = styled.div`
 
   img {
     display: block;
-    width: 88px;
+    width: 84px;
     height: auto;
     object-fit: contain;
   }
@@ -204,39 +194,19 @@ export const MobileBrandText = styled.div`
 `;
 
 export const MobileBrandTitle = styled.div`
-  font-size: 22px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: #111827;
   line-height: 1.1;
 `;
 
-export const MobileBrandSubtitle = styled.div`
-  margin-top: 4px;
-  font-size: 13px;
-  color: #6b7280;
-  line-height: 1.35;
-`;
-
 export const CardHeader = styled.div`
-  margin-bottom: 24px;
-`;
-
-export const Eyebrow = styled.div`
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  color: #374151;
-  font-size: 12px;
-  font-weight: 700;
+  margin-bottom: 20px;
 `;
 
 export const Title = styled.h2`
-  margin: 16px 0 8px;
+  margin: 0 0 8px;
   font-size: 30px;
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -286,7 +256,13 @@ export const Input = styled.input`
 
   &:focus {
     border-color: #ed1c24;
-    box-shadow: 0 0 0 4px rgba(237, 28, 36, 0.10);
+    box-shadow: 0 0 0 4px rgba(237, 28, 36, 0.1);
+  }
+
+  &:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+    -webkit-text-fill-color: #111827;
+    transition: background-color 9999s ease-in-out 0s;
   }
 `;
 
@@ -301,13 +277,11 @@ export const SubmitButton = styled.button`
   border: none;
   border-radius: 16px;
   cursor: pointer;
-
   background: linear-gradient(135deg, #ed1c24 0%, #c5161d 100%);
   color: #ffffff;
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.01em;
-
   transition: all 0.18s ease;
   box-shadow: 0 10px 24px rgba(237, 28, 36, 0.24);
 

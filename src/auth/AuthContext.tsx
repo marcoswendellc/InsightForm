@@ -1,4 +1,12 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState
+} from "react";
+import { apiUrl } from "../api";
 
 export type SafeUser = {
   id: string;
@@ -23,11 +31,6 @@ type AuthState = {
   authHeader: () => Record<string, string>;
 };
 
-const AuthContext = createContext<AuthState | null>(null);
-
-const USER_KEY = "auth_user_v1";
-const TOKEN_KEY = "auth_token_v1";
-
 type LoginResponse =
   | { ok: true; token: string; user: SafeUser }
   | { ok: false; error?: string };
@@ -36,10 +39,23 @@ type MeResponse =
   | { ok: true; user: SafeUser }
   | { ok: false; error?: string };
 
+const AuthContext = createContext<AuthState | null>(null);
+
+const USER_KEY = "auth_user_v1";
+const TOKEN_KEY = "auth_token_v1";
+
 function loadJSON<T>(key: string): T | null {
   try {
     const raw = localStorage.getItem(key);
     return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+function loadToken(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
   } catch {
     return null;
   }
@@ -57,9 +73,9 @@ function normalizeUser(input: SafeUser | null | undefined): SafeUser | null {
   };
 }
 
-async function safeReadJson<T>(r: Response): Promise<T | null> {
+async function safeReadJson<T>(response: Response): Promise<T | null> {
   try {
-    return (await r.json()) as T;
+    return (await response.json()) as T;
   } catch {
     return null;
   }
@@ -70,114 +86,120 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     normalizeUser(loadJSON<SafeUser>(USER_KEY))
   );
 
-  const [token, setToken] = useState<string | null>(() => {
-    try {
-      return localStorage.getItem(TOKEN_KEY);
-    } catch {
-      return null;
-    }
-  });
-
+  const [token, setToken] = useState<string | null>(() => loadToken(TOKEN_KEY));
   const [isLoading, setIsLoading] = useState(true);
 
-  const persist = (nextUser: SafeUser | null, nextToken: string | null) => {
-    const normalizedUser = normalizeUser(nextUser);
+  const persist = useCallback(
+    (nextUser: SafeUser | null, nextToken: string | null) => {
+      const normalizedUser = normalizeUser(nextUser);
 
-    setUser(normalizedUser);
-    setToken(nextToken);
+      setUser(normalizedUser);
+      setToken(nextToken);
 
-    if (normalizedUser) {
-      localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
-    } else {
-      localStorage.removeItem(USER_KEY);
-    }
+      try {
+        if (normalizedUser) {
+          localStorage.setItem(USER_KEY, JSON.stringify(normalizedUser));
+        } else {
+          localStorage.removeItem(USER_KEY);
+        }
 
-    if (nextToken) {
-      localStorage.setItem(TOKEN_KEY, nextToken);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
-  };
+        if (nextToken) {
+          localStorage.setItem(TOKEN_KEY, nextToken);
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      } catch {
+        // ignora falha de storage
+      }
+    },
+    []
+  );
 
-  const logout = () => {
+  const logout = useCallback(() => {
     persist(null, null);
-  };
+  }, [persist]);
 
-  const authHeader = (): Record<string, string> => {
-    const headers: Record<string, string> = {};
+  const authHeader = useCallback((): Record<string, string> => {
+    if (!token) return {};
+    return {
+      Authorization: `Bearer ${token}`
+    };
+  }, [token]);
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    return headers;
-  };
-
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     if (!token) {
       setIsLoading(false);
       return;
     }
 
     try {
-      const r = await fetch("/api/auth/me", {
+      const response = await fetch(apiUrl("/api/auth/me"), {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
 
-      const data = await safeReadJson<MeResponse>(r);
+      const data = await safeReadJson<MeResponse>(response);
 
-      if (!r.ok || !data || !data.ok) {
-        logout();
+      if (!response.ok || !data || !data.ok) {
+        persist(null, null);
         return;
       }
 
       persist(data.user, token);
     } catch {
-      // falha de rede: mantém sessão atual
+      // falha de rede: mantém sessão local
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, persist]);
+
+  const login = useCallback(
+    async (username: string, password: string): Promise<LoginResult> => {
+      try {
+        const response = await fetch(apiUrl("/api/auth/login"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await safeReadJson<LoginResponse>(response);
+
+        if (!response.ok || !data) {
+          return {
+            ok: false,
+            message: "Usuário ou senha inválidos."
+          };
+        }
+
+        if (!data.ok) {
+          return {
+            ok: false,
+            message: data.error ?? "Usuário ou senha inválidos."
+          };
+        }
+
+        persist(data.user, data.token);
+
+        return { ok: true };
+      } catch {
+        return {
+          ok: false,
+          message: "Erro de conexão. Tente novamente."
+        };
+      }
+    },
+    [persist]
+  );
 
   useEffect(() => {
     refresh();
-  }, []);
+  }, [refresh]);
 
-  const login = async (
-    username: string,
-    password: string
-  ): Promise<LoginResult> => {
-    try {
-      const r = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password })
-      });
-
-      const data = await safeReadJson<LoginResponse>(r);
-
-      if (!r.ok || !data) {
-        return { ok: false, message: "Usuário ou senha inválidos." };
-      }
-
-      if (!data.ok) {
-        return {
-          ok: false,
-          message: data.error ?? "Usuário ou senha inválidos."
-        };
-      }
-
-      persist(data.user, data.token);
-      return { ok: true };
-    } catch {
-      return { ok: false, message: "Erro de conexão. Tente novamente." };
-    }
-  };
-
-  const value: AuthState = useMemo(() => {
+  const value = useMemo<AuthState>(() => {
     return {
       user,
       token,
@@ -188,17 +210,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refresh,
       authHeader
     };
-  }, [user, token, isLoading]);
+  }, [user, token, isLoading, login, logout, refresh, authHeader]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const ctx = useContext(AuthContext);
+  const context = useContext(AuthContext);
 
-  if (!ctx) {
+  if (!context) {
     throw new Error("useAuth deve ser usado dentro de AuthProvider");
   }
 
-  return ctx;
+  return context;
 }

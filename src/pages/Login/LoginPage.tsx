@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../auth/AuthContext";
 import logoTerral from "../../assets/logo-terral.png";
 
 import {
@@ -36,8 +37,9 @@ import {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -49,8 +51,12 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      // coloque aqui sua lógica real de login
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const result = await login(username.trim(), password);
+
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
 
       navigate("/");
     } catch {
@@ -76,7 +82,8 @@ export default function LoginPage() {
 
           <HeroCard>
             <HeroTitle>
-              Crie briefings de forma simples <br></br>e padronizada
+              Crie briefings de forma simples <br />
+              e padronizada
             </HeroTitle>
 
             <HeroText>
@@ -113,15 +120,18 @@ export default function LoginPage() {
             </Subtitle>
           </CardHeader>
 
-          <Form onSubmit={handleSubmit}>
+          <Form onSubmit={handleSubmit} autoComplete="on">
             <Field>
-              <Label htmlFor="email">E-mail</Label>
+              <Label htmlFor="username">Usuário</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="seu.email@terral.com.br"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="username"
+                name="username"
+                type="text"
+                autoComplete="username"
+                placeholder="Digite seu usuário"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
               />
             </Field>
 
@@ -129,10 +139,13 @@ export default function LoginPage() {
               <Label htmlFor="password">Senha</Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
+                autoComplete="current-password"
                 placeholder="Digite sua senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
               />
             </Field>
 

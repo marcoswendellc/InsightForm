@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { FilePdf } from "phosphor-react";
+import { apiUrl } from "../../../api";
 import { useAuth } from "../../../auth/AuthContext";
 import type { FormDefinition, Question } from "../types";
 import SectionPreview from "./SectionPreview";
@@ -239,7 +240,7 @@ export default function FormResponsePage({ form }: Props) {
       answers: buildSubmitAnswers(answers)
     };
 
-    const response = await fetch("/api/forms/submit", {
+    const response = await fetch(apiUrl("/api/forms/submit"), {
       method: isEditResponse ? "PUT" : "POST",
       headers: {
         "Content-Type": "application/json",
