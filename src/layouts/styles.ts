@@ -42,8 +42,8 @@ export const BrandMark = styled.div`
   flex-shrink: 0;
   
   img {
-    width: 32px;
-    height: 32px;
+    width: 48px;
+    height: 48px;
     object-fit: contain;
   }
 `;
@@ -131,8 +131,9 @@ export const Btn = styled.button`
   border: 1px solid #e5e7eb;
   cursor: pointer;
   color: #374151;
-  font-weight: 700;
-  padding: 10px 14px;
+  font-weight: 600;
+  padding: 9px 14px;
+  font-size: 13px;
   border-radius: 14px;
   background: #ffffff;
   transition: all 0.18s ease;
