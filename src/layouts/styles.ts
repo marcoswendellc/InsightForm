@@ -42,9 +42,11 @@ export const BrandMark = styled.div`
   flex-shrink: 0;
   
   img {
-    width: 48px;
-    height: 48px;
+    width: 64px;
+    height: 64px;
     object-fit: contain;
+    image-rendering: crisp-edges;
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.05));
   }
 `;
 

@@ -92,11 +92,11 @@ export default function LoginPage() {
               <Field
                 id="username"
                 name="username"
-                type="text"
+                type="email"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="seu@email.com"
-                autoComplete="username"
+                autoComplete="email"
                 disabled={loading}
               />
             </FieldGroup>
