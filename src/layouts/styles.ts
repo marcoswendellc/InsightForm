@@ -6,7 +6,7 @@ export const Layout = styled.div`
 `;
 
 export const Topbar = styled.header`
-  height: 64px;
+  height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
