@@ -13,10 +13,11 @@ export const PreviewSectionHeader = styled.div`
 
 export const PreviewSectionTitle = styled.h2`
   margin: 10px 0 0 0;
-  font-size: 24px;
-  font-weight: 500;
+  font-size: 28px;
+  font-weight: 700;
   line-height: 1.3;
-  color: #202124;
+  letter-spacing: -0.03em;
+  color: #0f172a;
 `;
 
 export const PreviewSectionDescription = styled.p`
