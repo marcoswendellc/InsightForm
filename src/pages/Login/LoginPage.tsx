@@ -157,7 +157,7 @@ export default function LoginPage() {
           </Form>
 
           <FooterText>
-            Terral Shopping Centers • Plataforma interna
+            © 2026 Terral Shopping Centers
           </FooterText>
         </LoginCard>
       </Main>
