@@ -722,8 +722,8 @@ export default function FormBuilderPage() {
                   src={formIcon}
                   alt="Ícone do formulário"
                   style={{
-                    width: 22,
-                    height: 22,
+                    width: 26,
+                    height: 26,
                     objectFit: "contain"
                   }}
                 />

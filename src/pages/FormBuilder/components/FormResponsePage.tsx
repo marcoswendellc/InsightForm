@@ -386,7 +386,11 @@ export default function FormResponsePage({ form }: Props) {
           background: uiColors.white,
           borderRadius: 12,
           padding: 24,
-          boxShadow: uiColors.cardShadow
+          boxShadow: uiColors.cardShadow,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          textAlign: "center"
         }}
       >
         <h2
