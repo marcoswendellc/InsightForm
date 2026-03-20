@@ -3,6 +3,7 @@ import styled from "styled-components";
 export const Layout = styled.div`
   min-height: 100vh;
   background: #f3f4f6;
+  zoom: 110%;
 `;
 
 export const Topbar = styled.header`
