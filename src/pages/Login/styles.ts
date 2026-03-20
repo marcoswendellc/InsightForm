@@ -283,7 +283,7 @@ export const SubmitButton = styled.button`
   font-weight: 800;
   letter-spacing: 0.01em;
   transition: all 0.18s ease;
-  box-shadow: 0 10px 24px rgba(237, 28, 36, 0.24);
+  
 
   &:hover {
     transform: translateY(-1px);
