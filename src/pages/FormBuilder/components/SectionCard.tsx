@@ -1,6 +1,18 @@
+import type { CSSProperties } from "react";
 import type { GoTo, QuestionType, Section } from "../types";
 import QuestionCard from "./QuestionCard";
-import { Trash } from "phosphor-react";
+import { Trash, DotsSixVertical } from "phosphor-react";
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import {
   SectionShell,
@@ -15,6 +27,8 @@ import {
   GoToSelect
 } from "./components.styles";
 
+type MoveDirection = "up" | "down";
+
 type Props = {
   section: Section;
   index: number;
@@ -25,6 +39,7 @@ type Props = {
 
   onActivate: () => void;
   onRemove: () => void;
+  onMoveQuestion: (questionId: string, direction: MoveDirection) => void;
   onUpdate: (data: { title?: string; description?: string }) => void;
   onUpdateSectionGoTo: (goTo: GoTo) => void;
 
@@ -37,6 +52,7 @@ type Props = {
       required?: boolean;
       type?: QuestionType;
       jumpEnabled?: boolean;
+      includeTime?: boolean;
     }
   ) => void;
 
@@ -46,6 +62,11 @@ type Props = {
   onUpdateOption: (questionId: string, index: number, value: string) => void;
   onUpdateOptionGoTo: (questionId: string, index: number, goTo: GoTo) => void;
   onRemoveOption: (questionId: string, index: number) => void;
+};
+
+type SortableQuestionItemProps = {
+  id: string;
+  children: React.ReactNode;
 };
 
 function goToKey(goTo?: GoTo) {
@@ -63,6 +84,68 @@ function parseGoTo(value: string): GoTo {
   return { kind: "next" };
 }
 
+function SortableQuestionItem({ id, children }: SortableQuestionItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.9 : 1,
+    zIndex: isDragging ? 3 : undefined
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 10
+        }}
+      >
+        <button
+          type="button"
+          aria-label="Arrastar pergunta"
+          title="Arrastar pergunta"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            width: 34,
+            minWidth: 34,
+            height: 34,
+            marginTop: 8,
+            borderRadius: 10,
+            border: "1px solid rgba(0,0,0,0.10)",
+            background: "#fff",
+            cursor: "grab",
+            color: "rgba(0,0,0,0.62)",
+            flexShrink: 0
+          }}
+        >
+          <DotsSixVertical size={18} weight="bold" />
+        </button>
+
+        <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
 export default function SectionCard({
   section,
   index,
@@ -71,6 +154,7 @@ export default function SectionCard({
   allSections,
   onActivate,
   onRemove,
+  onMoveQuestion,
   onUpdate,
   onUpdateSectionGoTo,
   onRemoveQuestion,
@@ -83,11 +167,93 @@ export default function SectionCard({
 }: Props) {
   const hasQuestions = section.questions.length > 0;
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: section.id });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.88 : 1,
+    zIndex: isDragging ? 2 : undefined,
+    boxShadow: isDragging
+      ? "0 18px 40px rgba(0,0,0,0.16)"
+      : undefined
+  };
+
+  const handleQuestionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = section.questions.findIndex(
+      (question) => question.id === active.id
+    );
+    const newIndex = section.questions.findIndex(
+      (question) => question.id === over.id
+    );
+
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    if (oldIndex < newIndex) {
+      for (let i = oldIndex; i < newIndex; i += 1) {
+        onMoveQuestion(String(active.id), "down");
+      }
+      return;
+    }
+
+    for (let i = oldIndex; i > newIndex; i -= 1) {
+      onMoveQuestion(String(active.id), "up");
+    }
+  };
+
   return (
-    <SectionShell data-active={active} onClick={onActivate}>
+    <SectionShell
+      ref={setNodeRef}
+      style={style}
+      data-active={active}
+      onClick={onActivate}
+    >
       <SectionTop>
-        <div>
-          <SectionBadge>Seção {index + 1}</SectionBadge>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10
+          }}
+        >
+          <button
+            type="button"
+            aria-label={`Arrastar seção ${index + 1}`}
+            title="Arrastar seção"
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,0.10)",
+              background: "#fff",
+              cursor: "grab",
+              color: "rgba(0,0,0,0.62)",
+              flexShrink: 0
+            }}
+          >
+            <DotsSixVertical size={18} weight="bold" />
+          </button>
+
+          <div>
+            <SectionBadge>Seção {index + 1}</SectionBadge>
+          </div>
         </div>
 
         <SectionRight>
@@ -119,31 +285,53 @@ export default function SectionCard({
         onChange={(e) => onUpdate({ description: e.target.value })}
       />
 
-      <Helper>Clique na seção para ativar e usar o menu lateral.</Helper>
+      <Helper>
+        Arraste pelo ícone ao lado do título para reordenar a seção.
+      </Helper>
 
       <QuestionsBlock>
         {hasQuestions ? (
-          section.questions.map((q) => (
-            <div key={q.id} onClick={(e) => e.stopPropagation()}>
-              <QuestionCard
-                mode="builder"
-                question={q}
-                sectionId={section.id}
-                sections={allSections}
-                onRemove={() => onRemoveQuestion(q.id)}
-                onUpdate={(data) => onUpdateQuestion(q.id, data)}
-                onAddOption={() => onAddOption(q.id)}
-                onAddOtherOption={() => onAddOtherOption(q.id)}
-                onUpdateOption={(optIndex, value) =>
-                  onUpdateOption(q.id, optIndex, value)
-                }
-                onUpdateOptionGoTo={(optIndex, goTo) =>
-                  onUpdateOptionGoTo(q.id, optIndex, goTo)
-                }
-                onRemoveOption={(optIndex) => onRemoveOption(q.id, optIndex)}
-              />
-            </div>
-          ))
+          <DndContext
+            collisionDetection={closestCenter}
+            onDragEnd={handleQuestionDragEnd}
+          >
+            <SortableContext
+              items={section.questions.map((question) => question.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 12
+                }}
+              >
+                {section.questions.map((q) => (
+                  <SortableQuestionItem key={q.id} id={q.id}>
+                    <QuestionCard
+                      mode="builder"
+                      question={q}
+                      sectionId={section.id}
+                      sections={allSections}
+                      onRemove={() => onRemoveQuestion(q.id)}
+                      onUpdate={(data) => onUpdateQuestion(q.id, data)}
+                      onAddOption={() => onAddOption(q.id)}
+                      onAddOtherOption={() => onAddOtherOption(q.id)}
+                      onUpdateOption={(optIndex, value) =>
+                        onUpdateOption(q.id, optIndex, value)
+                      }
+                      onUpdateOptionGoTo={(optIndex, goTo) =>
+                        onUpdateOptionGoTo(q.id, optIndex, goTo)
+                      }
+                      onRemoveOption={(optIndex) =>
+                        onRemoveOption(q.id, optIndex)
+                      }
+                    />
+                  </SortableQuestionItem>
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
         ) : (
           <Helper style={{ marginTop: 10 }}>
             Nenhuma pergunta ainda. Use o menu lateral para adicionar.
@@ -169,7 +357,9 @@ export default function SectionCard({
 
         <GoToSelect
           value={goToKey(section.goTo)}
-          onChange={(e) => onUpdateSectionGoTo(parseGoTo(e.currentTarget.value))}
+          onChange={(e) =>
+            onUpdateSectionGoTo(parseGoTo(e.currentTarget.value))
+          }
         >
           <option value="next">Continuar para a próxima seção</option>
 

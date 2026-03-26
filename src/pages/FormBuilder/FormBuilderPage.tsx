@@ -12,6 +12,15 @@ import {
   FilePdf,
   Trash
 } from "phosphor-react";
+import {
+  DndContext,
+  closestCenter,
+  type DragEndEvent
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy
+} from "@dnd-kit/sortable";
 
 import { useAuth } from "../../auth/AuthContext";
 import { apiUrl } from "../../api";
@@ -600,6 +609,32 @@ export default function FormBuilderPage() {
     actions.addQuestion(activeSectionId, type);
   };
 
+  const handleSectionDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = state.form.sections.findIndex(
+      (section) => section.id === active.id
+    );
+    const newIndex = state.form.sections.findIndex(
+      (section) => section.id === over.id
+    );
+
+    if (oldIndex < 0 || newIndex < 0) return;
+
+    if (oldIndex < newIndex) {
+      for (let i = oldIndex; i < newIndex; i += 1) {
+        actions.moveSection(String(active.id), "down");
+      }
+      return;
+    }
+
+    for (let i = oldIndex; i > newIndex; i -= 1) {
+      actions.moveSection(String(active.id), "up");
+    }
+  };
+
   const renderListContent = () => {
     if (isLoadingForms) {
       return (
@@ -1047,43 +1082,58 @@ export default function FormBuilderPage() {
       return <FormPreview form={state.form} />;
     }
 
-    return state.form.sections.map((section, index) => (
-      <SectionCard
-        key={section.id}
-        section={section}
-        index={index}
-        active={section.id === state.activeSectionId}
-        canRemove={state.form.sections.length > 1}
-        allSections={state.form.sections}
-        onActivate={() => actions.setActiveSection(section.id)}
-        onRemove={() => actions.removeSection(section.id)}
-        onUpdate={(data) => actions.updateSection(section.id, data)}
-        onUpdateSectionGoTo={(goTo) =>
-          actions.updateSectionGoTo(section.id, goTo)
-        }
-        onRemoveQuestion={(questionId) =>
-          actions.removeQuestion(section.id, questionId)
-        }
-        onUpdateQuestion={(questionId, data) =>
-          actions.updateQuestion(section.id, questionId, data)
-        }
-        onAddOption={(questionId) =>
-          actions.addOption(section.id, questionId)
-        }
-        onAddOtherOption={(questionId) =>
-          actions.addOtherOption(section.id, questionId)
-        }
-        onUpdateOption={(questionId, optIndex, value) =>
-          actions.updateOption(section.id, questionId, optIndex, value)
-        }
-        onUpdateOptionGoTo={(questionId, optIndex, goTo) =>
-          actions.updateOptionGoTo(section.id, questionId, optIndex, goTo)
-        }
-        onRemoveOption={(questionId, optIndex) =>
-          actions.removeOption(section.id, questionId, optIndex)
-        }
-      />
-    ));
+    return (
+      <DndContext
+        collisionDetection={closestCenter}
+        onDragEnd={handleSectionDragEnd}
+      >
+        <SortableContext
+          items={state.form.sections.map((section) => section.id)}
+          strategy={verticalListSortingStrategy}
+        >
+          {state.form.sections.map((section, index) => (
+            <SectionCard
+              key={section.id}
+              section={section}
+              index={index}
+              active={section.id === state.activeSectionId}
+              canRemove={state.form.sections.length > 1}
+              allSections={state.form.sections}
+              onActivate={() => actions.setActiveSection(section.id)}
+              onRemove={() => actions.removeSection(section.id)}
+              onMoveQuestion={(questionId, direction) =>
+                actions.moveQuestion(section.id, questionId, direction)
+              }
+              onUpdate={(data) => actions.updateSection(section.id, data)}
+              onUpdateSectionGoTo={(goTo) =>
+                actions.updateSectionGoTo(section.id, goTo)
+              }
+              onRemoveQuestion={(questionId) =>
+                actions.removeQuestion(section.id, questionId)
+              }
+              onUpdateQuestion={(questionId, data) =>
+                actions.updateQuestion(section.id, questionId, data)
+              }
+              onAddOption={(questionId) =>
+                actions.addOption(section.id, questionId)
+              }
+              onAddOtherOption={(questionId) =>
+                actions.addOtherOption(section.id, questionId)
+              }
+              onUpdateOption={(questionId, optIndex, value) =>
+                actions.updateOption(section.id, questionId, optIndex, value)
+              }
+              onUpdateOptionGoTo={(questionId, optIndex, goTo) =>
+                actions.updateOptionGoTo(section.id, questionId, optIndex, goTo)
+              }
+              onRemoveOption={(questionId, optIndex) =>
+                actions.removeOption(section.id, questionId, optIndex)
+              }
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+    );
   };
 
   if (shouldShowList) {
@@ -1171,7 +1221,7 @@ export default function FormBuilderPage() {
                     : isPreview
                       ? "Pré-visualização do formulário"
                       : saveMessage ||
-                        "Clique em uma seção para ativar e use o menu lateral para adicionar perguntas."}
+                        "Arraste seções e perguntas pelos ícones laterais para reorganizar o builder."}
             </Subtle>
           </div>
 
@@ -1209,7 +1259,7 @@ export default function FormBuilderPage() {
                       title={isPublished ? "Voltar para rascunho" : "Publicar formulário"}
                       onClick={handleTogglePublish}
                       disabled={isLoadingForm || !formId}
-                      >
+                    >
                       {isPublished ? (
                         <ClockCounterClockwise size={20} weight="bold" />
                       ) : (

@@ -1,9 +1,29 @@
 import { useEffect, useMemo, useReducer } from "react";
-import type { FormDefinition, Mode, QuestionType, GoTo } from "./types";
+import type {
+  FormDefinition,
+  Mode,
+  QuestionType,
+  GoTo
+} from "./types";
 import { createEmptyForm } from "./types";
 import { initialState, reducer } from "./reducer";
 
 export const STORAGE_KEY = "insight_form_builder_v1";
+
+type QuestionUpdateData = Partial<{
+  label: string;
+  required: boolean;
+  type: QuestionType;
+  jumpEnabled: boolean;
+  includeTime: boolean;
+}>;
+
+type SectionUpdateData = Partial<{
+  title: string;
+  description: string;
+}>;
+
+type MoveDirection = "up" | "down";
 
 function loadDraft(): FormDefinition | null {
   try {
@@ -29,6 +49,14 @@ export function clearFormDraft() {
   } catch {
     // ignore
   }
+}
+
+function getFirstSectionId(form: FormDefinition) {
+  return form.sections?.[0]?.id ?? null;
+}
+
+function createFreshForm() {
+  return createEmptyForm();
 }
 
 async function fetchJson(url: string, init?: RequestInit) {
@@ -60,6 +88,20 @@ export function useFormBuilder() {
     }
   }, [state.form, state.mode]);
 
+  const importFormToState = (form: FormDefinition, forceBuilderMode = false) => {
+    clearFormDraft();
+
+    dispatch({ type: "IMPORT_FORM", form });
+    dispatch({
+      type: "SET_ACTIVE_SECTION",
+      sectionId: getFirstSectionId(form)
+    });
+
+    if (forceBuilderMode) {
+      dispatch({ type: "SET_MODE", mode: "builder" });
+    }
+  };
+
   const actions = useMemo(() => {
     return {
       setMode: (mode: Mode) => {
@@ -70,16 +112,8 @@ export function useFormBuilder() {
         const hard = !!opts?.hard;
 
         if (hard) {
-          clearFormDraft();
-
-          const emptyForm = createEmptyForm();
-
-          dispatch({ type: "IMPORT_FORM", form: emptyForm });
-          dispatch({
-            type: "SET_ACTIVE_SECTION",
-            sectionId: emptyForm.sections?.[0]?.id ?? null
-          });
-          dispatch({ type: "SET_MODE", mode: "builder" });
+          const emptyForm = createFreshForm();
+          importFormToState(emptyForm, true);
           return;
         }
 
@@ -102,10 +136,11 @@ export function useFormBuilder() {
         dispatch({ type: "REMOVE_SECTION", sectionId });
       },
 
-      updateSection: (
-        sectionId: string,
-        data: Partial<{ title: string; description: string }>
-      ) => {
+      moveSection: (sectionId: string, direction: MoveDirection) => {
+        dispatch({ type: "MOVE_SECTION", sectionId, direction });
+      },
+
+      updateSection: (sectionId: string, data: SectionUpdateData) => {
         dispatch({ type: "UPDATE_SECTION", sectionId, data });
       },
 
@@ -121,16 +156,23 @@ export function useFormBuilder() {
         dispatch({ type: "REMOVE_QUESTION", sectionId, questionId });
       },
 
+      moveQuestion: (
+        sectionId: string,
+        questionId: string,
+        direction: MoveDirection
+      ) => {
+        dispatch({
+          type: "MOVE_QUESTION",
+          sectionId,
+          questionId,
+          direction
+        });
+      },
+
       updateQuestion: (
         sectionId: string,
         questionId: string,
-        data: Partial<{
-          label: string;
-          required: boolean;
-          type: QuestionType;
-          jumpEnabled: boolean;
-          includeTime: boolean;
-        }>
+        data: QuestionUpdateData
       ) => {
         dispatch({ type: "UPDATE_QUESTION", sectionId, questionId, data });
       },
@@ -187,32 +229,15 @@ export function useFormBuilder() {
       },
 
       importEmpty: () => {
-        clearFormDraft();
-
-        const emptyForm = createEmptyForm();
-
-        dispatch({ type: "IMPORT_FORM", form: emptyForm });
-        dispatch({
-          type: "SET_ACTIVE_SECTION",
-          sectionId: emptyForm.sections?.[0]?.id ?? null
-        });
-        dispatch({ type: "SET_MODE", mode: "builder" });
+        const emptyForm = createFreshForm();
+        importFormToState(emptyForm, true);
       },
 
       importForm: (form: FormDefinition) => {
-        clearFormDraft();
-
-        dispatch({ type: "IMPORT_FORM", form });
-        dispatch({
-          type: "SET_ACTIVE_SECTION",
-          sectionId: form.sections?.[0]?.id ?? null
-        });
+        importFormToState(form);
       },
 
-      load: async (
-        formId: string,
-        headers?: Record<string, string>
-      ) => {
+      load: async (formId: string, headers?: Record<string, string>) => {
         const data = await fetchJson(
           `/api/forms/get?id=${encodeURIComponent(formId)}`,
           {
@@ -225,21 +250,16 @@ export function useFormBuilder() {
           throw new Error("Não foi possível carregar o formulário.");
         }
 
-        clearFormDraft();
-
-        dispatch({ type: "IMPORT_FORM", form: data.form });
-        dispatch({
-          type: "SET_ACTIVE_SECTION",
-          sectionId: data.form.sections?.[0]?.id ?? null
-        });
+        importFormToState(data.form);
       }
     };
   }, []);
 
   const activeSection = useMemo(() => {
     return (
-      state.form.sections.find((section) => section.id === state.activeSectionId) ??
-      null
+      state.form.sections.find(
+        (section) => section.id === state.activeSectionId
+      ) ?? null
     );
   }, [state.form.sections, state.activeSectionId]);
 

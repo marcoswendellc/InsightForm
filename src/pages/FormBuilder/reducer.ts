@@ -13,6 +13,8 @@ import {
   createOption
 } from "./types";
 
+type MoveDirection = "up" | "down";
+
 export type State = {
   mode: Mode;
   activeSectionId: string | null;
@@ -26,6 +28,7 @@ export type Action =
   | { type: "SET_ACTIVE_SECTION"; sectionId: string | null }
   | { type: "ADD_SECTION" }
   | { type: "REMOVE_SECTION"; sectionId: string }
+  | { type: "MOVE_SECTION"; sectionId: string; direction: MoveDirection }
   | {
       type: "UPDATE_SECTION";
       sectionId: string;
@@ -34,6 +37,12 @@ export type Action =
   | { type: "UPDATE_SECTION_GOTO"; sectionId: string; goTo: GoTo }
   | { type: "ADD_QUESTION"; sectionId: string; qType: QuestionType }
   | { type: "REMOVE_QUESTION"; sectionId: string; questionId: string }
+  | {
+      type: "MOVE_QUESTION";
+      sectionId: string;
+      questionId: string;
+      direction: MoveDirection;
+    }
   | {
       type: "UPDATE_QUESTION";
       sectionId: string;
@@ -99,6 +108,26 @@ function clearOptionGoTo(options?: Option[]) {
   return options.map((o) => (o.goTo ? { ...o, goTo: undefined } : o));
 }
 
+function getFirstSectionId(form: FormDefinition) {
+  return form.sections[0]?.id ?? null;
+}
+
+function moveItem<T>(list: T[], fromIndex: number, toIndex: number) {
+  if (
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= list.length ||
+    toIndex >= list.length
+  ) {
+    return list;
+  }
+
+  const next = [...list];
+  const [item] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, item);
+  return next;
+}
+
 function normalizeQuestionOnTypeChange(
   question: Question,
   nextType: QuestionType
@@ -138,8 +167,17 @@ function normalizeQuestionOnTypeChange(
   };
 }
 
-function getFirstSectionId(form: FormDefinition) {
-  return form.sections[0]?.id ?? null;
+function mapSections(
+  state: State,
+  updater: (section: FormDefinition["sections"][number]) => FormDefinition["sections"][number]
+): State {
+  return {
+    ...state,
+    form: {
+      ...state.form,
+      sections: state.form.sections.map(updater)
+    }
+  };
 }
 
 export function reducer(state: State, action: Action): State {
@@ -223,42 +261,49 @@ export function reducer(state: State, action: Action): State {
       };
     }
 
-    case "UPDATE_SECTION": {
-      const nextSections = state.form.sections.map((section) =>
-        section.id === action.sectionId
-          ? { ...section, ...action.data }
-          : section
+    case "MOVE_SECTION": {
+      const currentIndex = state.form.sections.findIndex(
+        (section) => section.id === action.sectionId
       );
+
+      if (currentIndex < 0) return state;
+
+      const targetIndex =
+        action.direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+      if (targetIndex < 0 || targetIndex >= state.form.sections.length) {
+        return state;
+      }
 
       return {
         ...state,
         form: {
           ...state.form,
-          sections: nextSections
+          sections: moveItem(state.form.sections, currentIndex, targetIndex)
         }
       };
     }
 
+    case "UPDATE_SECTION": {
+      return mapSections(state, (section) =>
+        section.id === action.sectionId
+          ? { ...section, ...action.data }
+          : section
+      );
+    }
+
     case "UPDATE_SECTION_GOTO": {
-      const nextSections = state.form.sections.map((section) =>
+      return mapSections(state, (section) =>
         section.id === action.sectionId
           ? { ...section, goTo: action.goTo }
           : section
       );
-
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
-        }
-      };
     }
 
     case "ADD_QUESTION": {
       const question = createQuestion(action.qType);
 
-      const nextSections = state.form.sections.map((section) =>
+      return mapSections(state, (section) =>
         section.id === action.sectionId
           ? {
               ...section,
@@ -266,18 +311,10 @@ export function reducer(state: State, action: Action): State {
             }
           : section
       );
-
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
-        }
-      };
     }
 
     case "REMOVE_QUESTION": {
-      const nextSections = state.form.sections.map((section) =>
+      return mapSections(state, (section) =>
         section.id === action.sectionId
           ? {
               ...section,
@@ -287,258 +324,226 @@ export function reducer(state: State, action: Action): State {
             }
           : section
       );
+    }
 
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
+    case "MOVE_QUESTION": {
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
+
+        const currentIndex = section.questions.findIndex(
+          (question) => question.id === action.questionId
+        );
+
+        if (currentIndex < 0) return section;
+
+        const targetIndex =
+          action.direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+        if (targetIndex < 0 || targetIndex >= section.questions.length) {
+          return section;
         }
-      };
+
+        return {
+          ...section,
+          questions: moveItem(section.questions, currentIndex, targetIndex)
+        };
+      });
     }
 
     case "UPDATE_QUESTION": {
-      const nextSections = state.form.sections.map((section) =>
-        section.id === action.sectionId
-          ? {
-              ...section,
-              questions: section.questions.map((question) => {
-                if (question.id !== action.questionId) return question;
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
 
-                let nextQuestion: Question = question;
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
 
-                if (action.data.type) {
-                  nextQuestion = normalizeQuestionOnTypeChange(
-                    nextQuestion,
-                    action.data.type
-                  );
-                }
+            let nextQuestion: Question = question;
 
-                if (typeof action.data.jumpEnabled === "boolean") {
-                  const enabling = action.data.jumpEnabled;
-
-                  if (nextQuestion.type === "multipleChoice") {
-                    nextQuestion = {
-                      ...nextQuestion,
-                      jumpEnabled: enabling,
-                      options: enabling
-                        ? nextQuestion.options
-                        : clearOptionGoTo(nextQuestion.options)
-                    };
-                  } else {
-                    nextQuestion = {
-                      ...nextQuestion,
-                      jumpEnabled: false,
-                      options: clearOptionGoTo(nextQuestion.options)
-                    };
-                  }
-                }
-
-                if (typeof action.data.includeTime === "boolean") {
-                  nextQuestion = {
-                    ...nextQuestion,
-                    includeTime:
-                      nextQuestion.type === "date"
-                        ? action.data.includeTime
-                        : undefined
-                  };
-                }
-
-                const {
-                  type,
-                  jumpEnabled,
-                  includeTime,
-                  ...rest
-                } = action.data as any;
-
-                return {
-                  ...nextQuestion,
-                  ...rest
-                };
-              })
+            if (action.data.type) {
+              nextQuestion = normalizeQuestionOnTypeChange(
+                nextQuestion,
+                action.data.type
+              );
             }
-          : section
-      );
 
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
-        }
-      };
+            if (typeof action.data.jumpEnabled === "boolean") {
+              const enabling = action.data.jumpEnabled;
+
+              if (nextQuestion.type === "multipleChoice") {
+                nextQuestion = {
+                  ...nextQuestion,
+                  jumpEnabled: enabling,
+                  options: enabling
+                    ? nextQuestion.options
+                    : clearOptionGoTo(nextQuestion.options)
+                };
+              } else {
+                nextQuestion = {
+                  ...nextQuestion,
+                  jumpEnabled: false,
+                  options: clearOptionGoTo(nextQuestion.options)
+                };
+              }
+            }
+
+            if (typeof action.data.includeTime === "boolean") {
+              nextQuestion = {
+                ...nextQuestion,
+                includeTime:
+                  nextQuestion.type === "date"
+                    ? action.data.includeTime
+                    : undefined
+              };
+            }
+
+            const {
+              type,
+              jumpEnabled,
+              includeTime,
+              ...rest
+            } = action.data as any;
+
+            return {
+              ...nextQuestion,
+              ...rest
+            };
+          })
+        };
+      });
     }
 
     case "ADD_OPTION": {
-      const nextSections = state.form.sections.map((section) =>
-        section.id === action.sectionId
-          ? {
-              ...section,
-              questions: section.questions.map((question) => {
-                if (question.id !== action.questionId) return question;
-                if (!question.options) return question;
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
 
-                const base = question.options.filter((option) => !option.isOther);
-                const other = question.options.find((option) => option.isOther);
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
 
-                return {
-                  ...question,
-                  options: [
-                    ...base,
-                    createOption(`Opção ${base.length + 1}`),
-                    ...(other ? [other] : [])
-                  ]
-                };
-              })
-            }
-          : section
-      );
+            const base = question.options.filter((option) => !option.isOther);
+            const other = question.options.find((option) => option.isOther);
 
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
-        }
-      };
+            return {
+              ...question,
+              options: [
+                ...base,
+                createOption(`Opção ${base.length + 1}`),
+                ...(other ? [other] : [])
+              ]
+            };
+          })
+        };
+      });
     }
 
     case "ADD_OTHER_OPTION": {
-      const nextSections = state.form.sections.map((section) =>
-        section.id === action.sectionId
-          ? {
-              ...section,
-              questions: section.questions.map((question) => {
-                if (question.id !== action.questionId) return question;
-                if (!question.options) return question;
-                if (hasOther(question.options)) return question;
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
 
-                return {
-                  ...question,
-                  options: ensureOtherLast([
-                    ...question.options,
-                    createOption("Outros", { isOther: true })
-                  ])
-                };
-              })
-            }
-          : section
-      );
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
+            if (hasOther(question.options)) return question;
 
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
-        }
-      };
+            return {
+              ...question,
+              options: ensureOtherLast([
+                ...question.options,
+                createOption("Outros", { isOther: true })
+              ])
+            };
+          })
+        };
+      });
     }
 
     case "UPDATE_OPTION": {
-      const nextSections = state.form.sections.map((section) =>
-        section.id === action.sectionId
-          ? {
-              ...section,
-              questions: section.questions.map((question) => {
-                if (question.id !== action.questionId) return question;
-                if (!question.options) return question;
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
 
-                const options = question.options.map((option, index) =>
-                  index === action.index
-                    ? { ...option, label: action.value }
-                    : option
-                );
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
 
-                return {
-                  ...question,
-                  options: ensureOtherLast(options)
-                };
-              })
-            }
-          : section
-      );
+            const options = question.options.map((option, index) =>
+              index === action.index
+                ? { ...option, label: action.value }
+                : option
+            );
 
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
-        }
-      };
+            return {
+              ...question,
+              options: ensureOtherLast(options)
+            };
+          })
+        };
+      });
     }
 
     case "UPDATE_OPTION_GOTO": {
-      const nextSections = state.form.sections.map((section) =>
-        section.id === action.sectionId
-          ? {
-              ...section,
-              questions: section.questions.map((question) => {
-                if (question.id !== action.questionId) return question;
-                if (!question.options) return question;
-                if (!question.jumpEnabled) return question;
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
 
-                const options = question.options.map((option, index) =>
-                  index === action.index
-                    ? { ...option, goTo: action.goTo }
-                    : option
-                );
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
+            if (!question.jumpEnabled) return question;
 
-                return {
-                  ...question,
-                  options: ensureOtherLast(options)
-                };
-              })
-            }
-          : section
-      );
+            const options = question.options.map((option, index) =>
+              index === action.index
+                ? { ...option, goTo: action.goTo }
+                : option
+            );
 
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
-        }
-      };
+            return {
+              ...question,
+              options: ensureOtherLast(options)
+            };
+          })
+        };
+      });
     }
 
     case "REMOVE_OPTION": {
-      const nextSections = state.form.sections.map((section) =>
-        section.id === action.sectionId
-          ? {
-              ...section,
-              questions: section.questions.map((question) => {
-                if (question.id !== action.questionId) return question;
-                if (!question.options) return question;
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
 
-                const options = question.options.filter(
-                  (_, index) => index !== action.index
-                );
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
 
-                const other = options.find((option) => option.isOther);
-                const normals = options.filter((option) => !option.isOther);
+            const options = question.options.filter(
+              (_, index) => index !== action.index
+            );
 
-                const ensuredNormals =
-                  normals.length > 0 ? normals : [createOption("Opção 1")];
+            const other = options.find((option) => option.isOther);
+            const normals = options.filter((option) => !option.isOther);
 
-                return {
-                  ...question,
-                  options: ensureOtherLast([
-                    ...ensuredNormals,
-                    ...(other ? [other] : [])
-                  ])
-                };
-              })
-            }
-          : section
-      );
+            const ensuredNormals =
+              normals.length > 0 ? normals : [createOption("Opção 1")];
 
-      return {
-        ...state,
-        form: {
-          ...state.form,
-          sections: nextSections
-        }
-      };
+            return {
+              ...question,
+              options: ensureOtherLast([
+                ...ensuredNormals,
+                ...(other ? [other] : [])
+              ])
+            };
+          })
+        };
+      });
     }
 
     case "IMPORT_FORM":
