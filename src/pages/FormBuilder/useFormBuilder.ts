@@ -36,6 +36,27 @@ function loadDraft(): FormDefinition | null {
   }
 }
 
+function normalizeForm(form: FormDefinition): FormDefinition {
+  return {
+    ...form,
+    sections: form.sections.map((section) => ({
+      ...section,
+      questions: section.questions.map((q) => {
+        const isOptions =
+          q.type === "multipleChoice" || q.type === "checkbox";
+
+        return {
+          ...q,
+          sizeEnabled: isOptions ? q.sizeEnabled ?? false : undefined,
+          jumpEnabled:
+            q.type === "multipleChoice" ? q.jumpEnabled ?? false : undefined,
+          includeTime: q.type === "date" ? q.includeTime ?? false : undefined
+        };
+      })
+    }))
+  };
+}
+
 function saveDraft(form: FormDefinition) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(form));
@@ -92,10 +113,13 @@ export function useFormBuilder() {
   const importFormToState = (form: FormDefinition, forceBuilderMode = false) => {
     clearFormDraft();
 
-    dispatch({ type: "IMPORT_FORM", form });
+    const normalized = normalizeForm(form);
+
+    dispatch({ type: "IMPORT_FORM", form: normalized });
+
     dispatch({
       type: "SET_ACTIVE_SECTION",
-      sectionId: getFirstSectionId(form)
+      sectionId: getFirstSectionId(normalized)
     });
 
     if (forceBuilderMode) {
