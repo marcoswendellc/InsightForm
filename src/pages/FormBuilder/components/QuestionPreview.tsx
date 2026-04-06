@@ -187,6 +187,7 @@ export default function QuestionPreview({
           {question.options?.map((opt) => {
             const isSelected = selectedRadio === opt.id;
             const size = sizes[opt.id] || {};
+            const hasSize = !!size.height || !!size.width || !!size.unit;
 
             return (
               <div key={opt.id} style={{ display: "grid", gap: 6 }}>
@@ -211,7 +212,7 @@ export default function QuestionPreview({
                   )}
                 </PreviewOptionRow>
 
-                {question.sizeEnabled && isSelected && !opt.isOther && (
+                {question.sizeEnabled && (isSelected || hasSize) && !opt.isOther && (
                   <div style={{ display: "flex", gap: 8, paddingLeft: 24 }}>
                     <input
                       placeholder="Altura"
@@ -253,6 +254,7 @@ export default function QuestionPreview({
           {question.options?.map((opt) => {
             const isSelected = selectedCheckboxes.includes(opt.id);
             const size = sizes[opt.id] || {};
+            const hasSize = !!size.height || !!size.width || !!size.unit;
 
             return (
               <div key={opt.id} style={{ display: "grid", gap: 6 }}>
@@ -276,7 +278,7 @@ export default function QuestionPreview({
                   )}
                 </PreviewOptionRow>
 
-                {question.sizeEnabled && isSelected && !opt.isOther && (
+                {question.sizeEnabled && (isSelected || hasSize) && !opt.isOther && (
                   <div style={{ display: "flex", gap: 8, paddingLeft: 24 }}>
                     <input
                       placeholder="Altura"

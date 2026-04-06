@@ -119,17 +119,11 @@ function getRequiredErrorMessage(question: Question) {
     return "Preencha a data e a hora.";
   }
 
-  if (
-    question.type === "multipleChoice" &&
-    question.sizeEnabled
-  ) {
+  if (question.type === "multipleChoice" && question.sizeEnabled) {
     return "Selecione uma opção e preencha altura, largura e unidade.";
   }
 
-  if (
-    question.type === "checkbox" &&
-    question.sizeEnabled
-  ) {
+  if (question.type === "checkbox" && question.sizeEnabled) {
     return "Selecione ao menos uma opção e preencha altura, largura e unidade.";
   }
 
@@ -250,6 +244,8 @@ export function validateSection(
 export function buildSubmitAnswers(answers: AnswersMap): SubmitAnswer[] {
   return Object.entries(answers)
     .filter(([, value]) => {
+      if (!value) return false;
+
       if (Array.isArray(value)) {
         return value.length > 0;
       }
