@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { FilePdf } from "phosphor-react";
 import { apiUrl } from "../../../api";
 import { useAuth } from "../../../auth/AuthContext";
-import type { FormDefinition, Question } from "../types";
+import type { FormDefinition, Question, FormAnswerValue } from "../types";
 import SectionPreview from "./SectionPreview";
 import {
   type AnswersMap,
@@ -22,7 +22,7 @@ type ExistingResponsePayload = {
   form_id: string;
   answers?:
     | AnswersMap
-    | Array<{ questionId: string; value: string | string[] }>;
+    | Array<{ questionId: string; value: FormAnswerValue }>;
 };
 
 function parseResponseAnswers(
@@ -181,7 +181,7 @@ export default function FormResponsePage({ form }: Props) {
     };
   }, [currentFormId, isEditResponse, responseId, authHeader]);
 
-  const handleAnswerChange = (question: Question, value: string | string[]) => {
+  const handleAnswerChange = (question: Question, value: FormAnswerValue) => {
     setAnswers((prev) => ({
       ...prev,
       [question.id]: value
@@ -345,12 +345,23 @@ export default function FormResponsePage({ form }: Props) {
         }}
       >
         <h2
-          style={{ margin: 0, fontSize: 24, fontWeight: 600, color: uiColors.text }}
+          style={{
+            margin: 0,
+            fontSize: 24,
+            fontWeight: 600,
+            color: uiColors.text
+          }}
         >
           Carregando resposta
         </h2>
 
-        <p style={{ marginTop: 12, color: uiColors.textSoft, lineHeight: 1.5 }}>
+        <p
+          style={{
+            marginTop: 12,
+            color: uiColors.textSoft,
+            lineHeight: 1.5
+          }}
+        >
           Aguarde enquanto buscamos os dados para edição.
         </p>
       </div>
@@ -368,12 +379,23 @@ export default function FormResponsePage({ form }: Props) {
         }}
       >
         <h2
-          style={{ margin: 0, fontSize: 24, fontWeight: 600, color: uiColors.text }}
+          style={{
+            margin: 0,
+            fontSize: 24,
+            fontWeight: 600,
+            color: uiColors.text
+          }}
         >
           Não foi possível carregar a resposta
         </h2>
 
-        <p style={{ marginTop: 12, color: uiColors.danger, lineHeight: 1.5 }}>
+        <p
+          style={{
+            marginTop: 12,
+            color: uiColors.danger,
+            lineHeight: 1.5
+          }}
+        >
           {loadExistingResponseError}
         </p>
       </div>
@@ -395,12 +417,23 @@ export default function FormResponsePage({ form }: Props) {
         }}
       >
         <h2
-          style={{ margin: 0, fontSize: 24, fontWeight: 600, color: uiColors.text }}
+          style={{
+            margin: 0,
+            fontSize: 24,
+            fontWeight: 600,
+            color: uiColors.text
+          }}
         >
           {isEditResponse ? "Resposta atualizada" : "Resposta enviada"}
         </h2>
 
-        <p style={{ marginTop: 12, color: uiColors.textSoft, lineHeight: 1.5 }}>
+        <p
+          style={{
+            marginTop: 12,
+            color: uiColors.textSoft,
+            lineHeight: 1.5
+          }}
+        >
           {isEditResponse
             ? "As alterações foram salvas com sucesso."
             : "Sua resposta foi registrada com sucesso."}

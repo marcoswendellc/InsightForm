@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { FormDefinition, Question } from "../types";
+import type { FormDefinition, Question, FormAnswerValue } from "../types";
 import SectionPreview from "./SectionPreview";
 import {
   type AnswersMap,
@@ -22,14 +22,17 @@ export default function FormPreview({ form }: Props) {
 
   const isLast = useMemo(() => {
     const next = getNextSectionIndex(form, currentSectionIndex, answers);
-    return next === "submit" || (typeof next === "number" && next >= form.sections.length);
+    return (
+      next === "submit" ||
+      (typeof next === "number" && next >= form.sections.length)
+    );
   }, [form, currentSectionIndex, answers]);
 
   if (!section) {
     return null;
   }
 
-  const handleAnswerChange = (question: Question, value: string | string[]) => {
+  const handleAnswerChange = (question: Question, value: FormAnswerValue) => {
     setAnswers((prev) => ({
       ...prev,
       [question.id]: value

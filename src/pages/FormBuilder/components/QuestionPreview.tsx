@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
-import type { Question } from "../types";
+import { useMemo, useState, useEffect } from "react";
+import type {
+  Question,
+  FormAnswerValue,
+  MultipleChoiceAnswer,
+  CheckboxAnswer,
+  SizeValue
+} from "../types";
 import {
   PreviewQuestionShell,
   PreviewQuestionLabel,
   RequiredMark,
   PreviewTextInput,
-  PreviewDateInput,
-  PreviewDateTimeRow,
-  PreviewDateTimeField,
-  PreviewDateTimeLabel,
   PreviewOptionsList,
   PreviewOptionRow,
   PreviewOtherWrap,
@@ -18,9 +20,9 @@ import {
 
 type Props = {
   question: Question;
-  value?: string | string[];
+  value?: FormAnswerValue;
   error?: string;
-  onChange: (value: string | string[]) => void;
+  onChange: (value: FormAnswerValue) => void;
 };
 
 const INPUT_STYLE: React.CSSProperties = {
@@ -32,6 +34,28 @@ const INPUT_STYLE: React.CSSProperties = {
   width: 90
 };
 
+function isMultipleChoiceObject(
+  value: FormAnswerValue | undefined
+): value is Exclude<MultipleChoiceAnswer, string> {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    "optionId" in value
+  );
+}
+
+function isCheckboxObject(
+  value: FormAnswerValue | undefined
+): value is Exclude<CheckboxAnswer, string[]> {
+  return (
+    !!value &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    "selectedOptionIds" in value
+  );
+}
+
 export default function QuestionPreview({
   question,
   value,
@@ -40,36 +64,107 @@ export default function QuestionPreview({
 }: Props) {
   const optionName = useMemo(() => `preview_${question.id}`, [question.id]);
 
-  const selectedCheckboxes = Array.isArray(value) ? value : [];
-  const selectedRadio = typeof value === "string" ? value : "";
+  const selectedRadio =
+    typeof value === "string"
+      ? value
+      : isMultipleChoiceObject(value)
+      ? value.optionId
+      : "";
 
-  // 🔥 estado de tamanho por opção
-  const [sizes, setSizes] = useState<
-    Record<string, { width?: string; height?: string; unit?: string }>
-  >({});
+  const selectedCheckboxes: string[] = Array.isArray(value)
+    ? value
+    : isCheckboxObject(value)
+    ? value.selectedOptionIds ?? []
+    : [];
 
-  function updateSize(optionId: string, field: string, val: string) {
-    setSizes((prev) => ({
-      ...prev,
-      [optionId]: {
-        ...prev[optionId],
-        [field]: val
-      }
-    }));
-  }
+  const [sizes, setSizes] = useState<Record<string, SizeValue>>({});
 
-  const toggleCheckbox = (optionId: string) => {
-    if (!Array.isArray(value)) {
-      onChange([optionId]);
+  useEffect(() => {
+    if (!value || !question.sizeEnabled) return;
+
+    if (isMultipleChoiceObject(value) && value.size) {
+      setSizes({ [value.optionId]: value.size });
       return;
     }
 
-    if (value.includes(optionId)) {
-      onChange(value.filter((item) => item !== optionId));
-    } else {
-      onChange([...value, optionId]);
+    if (isCheckboxObject(value) && value.sizes) {
+      setSizes(value.sizes);
     }
-  };
+  }, [value, question.sizeEnabled]);
+
+  function updateSize(optionId: string, field: keyof SizeValue, val: string) {
+    setSizes((prev) => {
+      const next: Record<string, SizeValue> = {
+        ...prev,
+        [optionId]: {
+          ...prev[optionId],
+          [field]: val
+        }
+      };
+
+      if (question.type === "multipleChoice") {
+        const payload: MultipleChoiceAnswer = {
+          optionId,
+          size: next[optionId]
+        };
+        onChange(payload);
+      }
+
+      if (question.type === "checkbox") {
+        const payload: CheckboxAnswer = {
+          selectedOptionIds: selectedCheckboxes,
+          sizes: next
+        };
+        onChange(payload);
+      }
+
+      return next;
+    });
+  }
+
+  function handleSelectRadio(optionId: string) {
+    if (!question.sizeEnabled) {
+      onChange(optionId);
+      return;
+    }
+
+    const size: SizeValue = sizes[optionId] || {
+      height: "",
+      width: "",
+      unit: "cm"
+    };
+
+    const payload: MultipleChoiceAnswer = {
+      optionId,
+      size
+    };
+
+    onChange(payload);
+  }
+
+  function toggleCheckbox(optionId: string) {
+    let nextSelected: string[];
+
+    if (selectedCheckboxes.includes(optionId)) {
+      nextSelected = selectedCheckboxes.filter(
+        (id: string) => id !== optionId
+      );
+    } else {
+      nextSelected = [...selectedCheckboxes, optionId];
+    }
+
+    if (!question.sizeEnabled) {
+      onChange(nextSelected);
+      return;
+    }
+
+    const payload: CheckboxAnswer = {
+      selectedOptionIds: nextSelected,
+      sizes
+    };
+
+    onChange(payload);
+  }
 
   return (
     <PreviewQuestionShell data-error={error ? "true" : "false"}>
@@ -78,7 +173,6 @@ export default function QuestionPreview({
         {question.required && <RequiredMark>*</RequiredMark>}
       </PreviewQuestionLabel>
 
-      {/* TEXTO */}
       {question.type === "text" && (
         <PreviewTextInput
           type="text"
@@ -88,7 +182,6 @@ export default function QuestionPreview({
         />
       )}
 
-      {/* MULTIPLE CHOICE */}
       {question.type === "multipleChoice" && (
         <PreviewOptionsList>
           {question.options?.map((opt) => {
@@ -102,7 +195,7 @@ export default function QuestionPreview({
                     type="radio"
                     name={optionName}
                     checked={isSelected}
-                    onChange={() => onChange(opt.id)}
+                    onChange={() => handleSelectRadio(opt.id)}
                   />
 
                   {opt.isOther ? (
@@ -110,7 +203,7 @@ export default function QuestionPreview({
                       <span>Outros:</span>
                       <PreviewOtherInput
                         placeholder="Digite sua resposta"
-                        onFocus={() => onChange(opt.id)}
+                        onFocus={() => handleSelectRadio(opt.id)}
                       />
                     </PreviewOtherWrap>
                   ) : (
@@ -118,7 +211,6 @@ export default function QuestionPreview({
                   )}
                 </PreviewOptionRow>
 
-                {/* 🔥 TAMANHO */}
                 {question.sizeEnabled && isSelected && !opt.isOther && (
                   <div style={{ display: "flex", gap: 8, paddingLeft: 24 }}>
                     <input
@@ -156,7 +248,6 @@ export default function QuestionPreview({
         </PreviewOptionsList>
       )}
 
-      {/* CHECKBOX */}
       {question.type === "checkbox" && (
         <PreviewOptionsList>
           {question.options?.map((opt) => {
@@ -177,9 +268,7 @@ export default function QuestionPreview({
                       <span>Outros:</span>
                       <PreviewOtherInput
                         placeholder="Digite sua resposta"
-                        onFocus={() => {
-                          if (!isSelected) toggleCheckbox(opt.id);
-                        }}
+                        onFocus={() => toggleCheckbox(opt.id)}
                       />
                     </PreviewOtherWrap>
                   ) : (
@@ -187,7 +276,6 @@ export default function QuestionPreview({
                   )}
                 </PreviewOptionRow>
 
-                {/* 🔥 TAMANHO */}
                 {question.sizeEnabled && isSelected && !opt.isOther && (
                   <div style={{ display: "flex", gap: 8, paddingLeft: 24 }}>
                     <input

@@ -53,7 +53,7 @@ export type Action =
         type: QuestionType;
         jumpEnabled: boolean;
         includeTime: boolean;
-        sizeEnabled: boolean; // 🔥 NOVO
+        sizeEnabled: boolean;
       }>;
     }
   | { type: "ADD_OPTION"; sectionId: string; questionId: string }
@@ -146,7 +146,7 @@ function normalizeQuestionOnTypeChange(
       jumpEnabled:
         nextType === "multipleChoice" ? question.jumpEnabled ?? false : undefined,
       includeTime: undefined,
-      sizeEnabled: false // 🔥 reset ao trocar tipo
+      sizeEnabled: false
     };
   }
 
@@ -173,7 +173,9 @@ function normalizeQuestionOnTypeChange(
 
 function mapSections(
   state: State,
-  updater: (section: FormDefinition["sections"][number]) => FormDefinition["sections"][number]
+  updater: (
+    section: FormDefinition["sections"][number]
+  ) => FormDefinition["sections"][number]
 ): State {
   return {
     ...state,
@@ -209,6 +211,7 @@ export function reducer(state: State, action: Action): State {
 
     case "ADD_SECTION": {
       const id = createId();
+
       return {
         ...state,
         activeSectionId: id,
@@ -245,12 +248,85 @@ export function reducer(state: State, action: Action): State {
       };
     }
 
+    case "MOVE_SECTION": {
+      const index = state.form.sections.findIndex(
+        (section) => section.id === action.sectionId
+      );
+
+      if (index < 0) return state;
+
+      const newIndex = action.direction === "up" ? index - 1 : index + 1;
+
+      if (newIndex < 0 || newIndex >= state.form.sections.length) {
+        return state;
+      }
+
+      return {
+        ...state,
+        form: {
+          ...state.form,
+          sections: moveItem(state.form.sections, index, newIndex)
+        }
+      };
+    }
+
     case "UPDATE_SECTION":
       return mapSections(state, (section) =>
         section.id === action.sectionId
           ? { ...section, ...action.data }
           : section
       );
+
+    case "UPDATE_SECTION_GOTO":
+      return mapSections(state, (section) =>
+        section.id === action.sectionId
+          ? { ...section, goTo: action.goTo }
+          : section
+      );
+
+    case "ADD_QUESTION":
+      return mapSections(state, (section) =>
+        section.id === action.sectionId
+          ? {
+              ...section,
+              questions: [...section.questions, createQuestion(action.qType)]
+            }
+          : section
+      );
+
+    case "REMOVE_QUESTION":
+      return mapSections(state, (section) =>
+        section.id === action.sectionId
+          ? {
+              ...section,
+              questions: section.questions.filter(
+                (question) => question.id !== action.questionId
+              )
+            }
+          : section
+      );
+
+    case "MOVE_QUESTION":
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
+
+        const index = section.questions.findIndex(
+          (question) => question.id === action.questionId
+        );
+
+        if (index < 0) return section;
+
+        const newIndex = action.direction === "up" ? index - 1 : index + 1;
+
+        if (newIndex < 0 || newIndex >= section.questions.length) {
+          return section;
+        }
+
+        return {
+          ...section,
+          questions: moveItem(section.questions, index, newIndex)
+        };
+      });
 
     case "UPDATE_QUESTION":
       return mapSections(state, (section) => {
@@ -270,9 +346,178 @@ export function reducer(state: State, action: Action): State {
               );
             }
 
+            if (typeof action.data.jumpEnabled === "boolean") {
+              const enabling = action.data.jumpEnabled;
+
+              if (nextQuestion.type === "multipleChoice") {
+                nextQuestion = {
+                  ...nextQuestion,
+                  jumpEnabled: enabling,
+                  options: enabling
+                    ? nextQuestion.options
+                    : clearOptionGoTo(nextQuestion.options)
+                };
+              } else {
+                nextQuestion = {
+                  ...nextQuestion,
+                  jumpEnabled: false,
+                  options: clearOptionGoTo(nextQuestion.options)
+                };
+              }
+            }
+
+            if (typeof action.data.includeTime === "boolean") {
+              nextQuestion = {
+                ...nextQuestion,
+                includeTime:
+                  nextQuestion.type === "date"
+                    ? action.data.includeTime
+                    : undefined
+              };
+            }
+
+            const {
+              type,
+              jumpEnabled,
+              includeTime,
+              ...rest
+            } = action.data as Partial<{
+              label: string;
+              required: boolean;
+              type: QuestionType;
+              jumpEnabled: boolean;
+              includeTime: boolean;
+              sizeEnabled: boolean;
+            }>;
+
             return {
               ...nextQuestion,
-              ...action.data
+              ...rest
+            };
+          })
+        };
+      });
+
+    case "ADD_OPTION":
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
+
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
+
+            const base = question.options.filter((option) => !option.isOther);
+            const other = question.options.find((option) => option.isOther);
+
+            return {
+              ...question,
+              options: [
+                ...base,
+                createOption(`Opção ${base.length + 1}`),
+                ...(other ? [other] : [])
+              ]
+            };
+          })
+        };
+      });
+
+    case "ADD_OTHER_OPTION":
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
+
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
+            if (hasOther(question.options)) return question;
+
+            return {
+              ...question,
+              options: ensureOtherLast([
+                ...question.options,
+                createOption("Outros", { isOther: true })
+              ])
+            };
+          })
+        };
+      });
+
+    case "UPDATE_OPTION":
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
+
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
+
+            return {
+              ...question,
+              options: ensureOtherLast(
+                question.options.map((option, index) =>
+                  index === action.index
+                    ? { ...option, label: action.value }
+                    : option
+                )
+              )
+            };
+          })
+        };
+      });
+
+    case "UPDATE_OPTION_GOTO":
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
+
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
+            if (!question.jumpEnabled) return question;
+
+            return {
+              ...question,
+              options: ensureOtherLast(
+                question.options.map((option, index) =>
+                  index === action.index
+                    ? { ...option, goTo: action.goTo }
+                    : option
+                )
+              )
+            };
+          })
+        };
+      });
+
+    case "REMOVE_OPTION":
+      return mapSections(state, (section) => {
+        if (section.id !== action.sectionId) return section;
+
+        return {
+          ...section,
+          questions: section.questions.map((question) => {
+            if (question.id !== action.questionId) return question;
+            if (!question.options) return question;
+
+            const filtered = question.options.filter(
+              (_, index) => index !== action.index
+            );
+
+            if (filtered.length === 0) {
+              return {
+                ...question,
+                options: [createOption("Opção 1")]
+              };
+            }
+
+            return {
+              ...question,
+              options: ensureOtherLast(filtered)
             };
           })
         };

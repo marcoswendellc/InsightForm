@@ -48,8 +48,30 @@ export type FormDefinition = {
   sections: Section[];
 };
 
+/** Respostas com tamanho para múltipla escolha */
+export type MultipleChoiceAnswer =
+  | string
+  | {
+      optionId: string;
+      size?: SizeValue;
+    };
+
+/** Respostas com tamanho para checkbox */
+export type CheckboxAnswer =
+  | string[]
+  | {
+      selectedOptionIds: string[];
+      sizes?: Record<string, SizeValue>;
+    };
+
 /** Respostas do usuário por pergunta */
-export type FormAnswers = Record<string, string | string[]>;
+export type FormAnswerValue =
+  | string
+  | string[]
+  | MultipleChoiceAnswer
+  | CheckboxAnswer;
+
+export type FormAnswers = Record<string, FormAnswerValue>;
 
 export const createId = () => crypto.randomUUID();
 
