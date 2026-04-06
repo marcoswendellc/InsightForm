@@ -1,9 +1,7 @@
-import { useMemo, useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import type {
   Question,
   FormAnswerValue,
-  MultipleChoiceAnswer,
-  CheckboxAnswer,
   SizeValue
 } from "../types";
 import {
@@ -11,10 +9,12 @@ import {
   PreviewQuestionLabel,
   RequiredMark,
   PreviewTextInput,
+  PreviewDateInput,
+  PreviewDateTimeRow,
+  PreviewDateTimeField,
+  PreviewDateTimeLabel,
   PreviewOptionsList,
   PreviewOptionRow,
-  PreviewOtherWrap,
-  PreviewOtherInput,
   PreviewErrorText
 } from "./preview.styles";
 
@@ -34,26 +34,59 @@ const INPUT_STYLE: React.CSSProperties = {
   width: 90
 };
 
-function isMultipleChoiceObject(
-  value: FormAnswerValue | undefined
-): value is Exclude<MultipleChoiceAnswer, string> {
+const MAX_DATE_DIGITS = 8;
+
+function onlyDigits(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+function normalizeDateInput(value: string) {
+  const digits = onlyDigits(value).slice(0, MAX_DATE_DIGITS);
+
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
+}
+
+function maskedDateToIso(value: string) {
+  if (!value || value.length !== 10) return "";
+
+  const [day, month, year] = value.split("/");
+  if (!day || !month || !year) return "";
+
+  return `${year}-${month}-${day}`;
+}
+
+function buildDateTime(date: string, time: string) {
+  if (!date) return "";
+  if (!time) return date;
+  return `${date}T${time}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function hasOptionId(value: unknown): value is { optionId: string } {
+  return isRecord(value) && typeof value.optionId === "string";
+}
+
+function hasSelectedOptionIds(
+  value: unknown
+): value is { selectedOptionIds: string[] } {
   return (
-    !!value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    "optionId" in value
+    isRecord(value) &&
+    Array.isArray(value.selectedOptionIds) &&
+    value.selectedOptionIds.every((item) => typeof item === "string")
   );
 }
 
-function isCheckboxObject(
-  value: FormAnswerValue | undefined
-): value is Exclude<CheckboxAnswer, string[]> {
-  return (
-    !!value &&
-    typeof value === "object" &&
-    !Array.isArray(value) &&
-    "selectedOptionIds" in value
-  );
+function hasSize(value: unknown): value is { size: SizeValue } {
+  return isRecord(value) && isRecord(value.size);
+}
+
+function hasSizes(value: unknown): value is { sizes: Record<string, SizeValue> } {
+  return isRecord(value) && isRecord(value.sizes);
 }
 
 export default function QuestionPreview({
@@ -62,108 +95,137 @@ export default function QuestionPreview({
   error,
   onChange
 }: Props) {
-  const optionName = useMemo(() => `preview_${question.id}`, [question.id]);
-
   const selectedRadio =
     typeof value === "string"
       ? value
-      : isMultipleChoiceObject(value)
+      : hasOptionId(value)
       ? value.optionId
       : "";
 
   const selectedCheckboxes: string[] = Array.isArray(value)
     ? value
-    : isCheckboxObject(value)
-    ? value.selectedOptionIds ?? []
+    : hasSelectedOptionIds(value)
+    ? value.selectedOptionIds
     : [];
 
+  const [dateText, setDateText] = useState("");
+  const [timeText, setTimeText] = useState("");
   const [sizes, setSizes] = useState<Record<string, SizeValue>>({});
 
   useEffect(() => {
-    if (!value || !question.sizeEnabled) return;
+    if (question.type === "date") {
+      if (typeof value === "string" && value) {
+        const [datePart, timePart] = value.split("T");
+        const parts = datePart?.split("-");
 
-    if (isMultipleChoiceObject(value) && value.size) {
+        if (parts?.length === 3) {
+          setDateText(`${parts[2]}/${parts[1]}/${parts[0]}`);
+        } else {
+          setDateText("");
+        }
+
+        setTimeText(timePart?.slice(0, 5) ?? "");
+      } else {
+        setDateText("");
+        setTimeText("");
+      }
+    }
+
+    if (!question.sizeEnabled) {
+      setSizes({});
+      return;
+    }
+
+    if (!value) {
+      setSizes({});
+      return;
+    }
+
+    if (hasOptionId(value) && hasSize(value)) {
       setSizes({ [value.optionId]: value.size });
       return;
     }
 
-    if (isCheckboxObject(value) && value.sizes) {
+    if (hasSizes(value)) {
       setSizes(value.sizes);
+      return;
     }
-  }, [value, question.sizeEnabled]);
+
+    setSizes({});
+  }, [value, question.type, question.sizeEnabled]);
+
+  function emitDateValue(nextDateText: string, nextTimeText: string) {
+    const isoDate = maskedDateToIso(nextDateText);
+
+    if (!isoDate) {
+      onChange("");
+      return;
+    }
+
+    if (question.includeTime) {
+      onChange(buildDateTime(isoDate, nextTimeText));
+      return;
+    }
+
+    onChange(isoDate);
+  }
 
   function updateSize(optionId: string, field: keyof SizeValue, val: string) {
     setSizes((prev) => {
       const next: Record<string, SizeValue> = {
         ...prev,
         [optionId]: {
-          ...prev[optionId],
+          ...(prev[optionId] ?? {}),
           [field]: val
         }
       };
 
       if (question.type === "multipleChoice") {
-        const payload: MultipleChoiceAnswer = {
+        onChange({
           optionId,
           size: next[optionId]
-        };
-        onChange(payload);
+        } as FormAnswerValue);
       }
 
       if (question.type === "checkbox") {
-        const payload: CheckboxAnswer = {
+        onChange({
           selectedOptionIds: selectedCheckboxes,
           sizes: next
-        };
-        onChange(payload);
+        } as FormAnswerValue);
       }
 
       return next;
     });
   }
 
-  function handleSelectRadio(optionId: string) {
-    if (!question.sizeEnabled) {
-      onChange(optionId);
+  function handleSelectOption(optionId: string) {
+    if (question.type === "multipleChoice") {
+      if (question.sizeEnabled) {
+        onChange({
+          optionId,
+          size: sizes[optionId] ?? {}
+        } as FormAnswerValue);
+      } else {
+        onChange(optionId);
+      }
       return;
     }
 
-    const size: SizeValue = sizes[optionId] || {
-      height: "",
-      width: "",
-      unit: "cm"
-    };
+    if (question.type === "checkbox") {
+      const isSelected = selectedCheckboxes.includes(optionId);
+      const next = isSelected
+        ? selectedCheckboxes.filter((id) => id !== optionId)
+        : [...selectedCheckboxes, optionId];
 
-    const payload: MultipleChoiceAnswer = {
-      optionId,
-      size
-    };
-
-    onChange(payload);
-  }
-
-  function toggleCheckbox(optionId: string) {
-    let nextSelected: string[];
-
-    if (selectedCheckboxes.includes(optionId)) {
-      nextSelected = selectedCheckboxes.filter(
-        (id: string) => id !== optionId
-      );
-    } else {
-      nextSelected = [...selectedCheckboxes, optionId];
+      if (question.sizeEnabled) {
+        onChange({
+          selectedOptionIds: next,
+          sizes
+        } as FormAnswerValue);
+      } else {
+        onChange(next);
+      }
     }
-
-    if (!question.sizeEnabled) {
-      onChange(nextSelected);
-      return;
-    }
-
-    const payload: CheckboxAnswer = {
-      selectedOptionIds: nextSelected,
-      sizes
-    };
-
-    onChange(payload);
   }
 
   return (
@@ -175,110 +237,75 @@ export default function QuestionPreview({
 
       {question.type === "text" && (
         <PreviewTextInput
-          type="text"
-          placeholder="Sua resposta"
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
         />
       )}
 
-      {question.type === "multipleChoice" && (
-        <PreviewOptionsList>
-          {question.options?.map((opt) => {
-            const isSelected = selectedRadio === opt.id;
-            const size = sizes[opt.id] || {};
-            const hasSize = !!size.height || !!size.width || !!size.unit;
-
-            return (
-              <div key={opt.id} style={{ display: "grid", gap: 6 }}>
-                <PreviewOptionRow>
-                  <input
-                    type="radio"
-                    name={optionName}
-                    checked={isSelected}
-                    onChange={() => handleSelectRadio(opt.id)}
-                  />
-
-                  {opt.isOther ? (
-                    <PreviewOtherWrap>
-                      <span>Outros:</span>
-                      <PreviewOtherInput
-                        placeholder="Digite sua resposta"
-                        onFocus={() => handleSelectRadio(opt.id)}
-                      />
-                    </PreviewOtherWrap>
-                  ) : (
-                    <span>{opt.label || "Opção sem texto"}</span>
-                  )}
-                </PreviewOptionRow>
-
-                {question.sizeEnabled && (isSelected || hasSize) && !opt.isOther && (
-                  <div style={{ display: "flex", gap: 8, paddingLeft: 24 }}>
-                    <input
-                      placeholder="Altura"
-                      value={size.height || ""}
-                      onChange={(e) =>
-                        updateSize(opt.id, "height", e.target.value)
-                      }
-                      style={INPUT_STYLE}
-                    />
-
-                    <input
-                      placeholder="Largura"
-                      value={size.width || ""}
-                      onChange={(e) =>
-                        updateSize(opt.id, "width", e.target.value)
-                      }
-                      style={INPUT_STYLE}
-                    />
-
-                    <select
-                      value={size.unit || "cm"}
-                      onChange={(e) =>
-                        updateSize(opt.id, "unit", e.target.value)
-                      }
-                    >
-                      <option value="cm">cm</option>
-                      <option value="m">m</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </PreviewOptionsList>
+      {question.type === "date" && !question.includeTime && (
+        <PreviewDateInput
+          value={dateText}
+          onChange={(e) => {
+            const masked = normalizeDateInput(e.target.value);
+            setDateText(masked);
+            emitDateValue(masked, "");
+          }}
+        />
       )}
 
-      {question.type === "checkbox" && (
+      {question.type === "date" && question.includeTime && (
+        <PreviewDateTimeRow>
+          <PreviewDateTimeField>
+            <PreviewDateTimeLabel>Data</PreviewDateTimeLabel>
+            <PreviewDateInput
+              value={dateText}
+              onChange={(e) => {
+                const masked = normalizeDateInput(e.target.value);
+                setDateText(masked);
+                emitDateValue(masked, timeText);
+              }}
+            />
+          </PreviewDateTimeField>
+
+          <PreviewDateTimeField>
+            <PreviewDateTimeLabel>Hora</PreviewDateTimeLabel>
+            <PreviewDateInput
+              type="time"
+              value={timeText}
+              onChange={(e) => {
+                const nextTime = e.target.value;
+                setTimeText(nextTime);
+                emitDateValue(dateText, nextTime);
+              }}
+            />
+          </PreviewDateTimeField>
+        </PreviewDateTimeRow>
+      )}
+
+      {(question.type === "multipleChoice" || question.type === "checkbox") && (
         <PreviewOptionsList>
           {question.options?.map((opt) => {
-            const isSelected = selectedCheckboxes.includes(opt.id);
-            const size = sizes[opt.id] || {};
-            const hasSize = !!size.height || !!size.width || !!size.unit;
+            const isSelected =
+              question.type === "multipleChoice"
+                ? selectedRadio === opt.id
+                : selectedCheckboxes.includes(opt.id);
+
+            const size = sizes[opt.id] ?? {};
+            const hasSize = Boolean(size.height || size.width);
 
             return (
-              <div key={opt.id} style={{ display: "grid", gap: 6 }}>
+              <div key={opt.id}>
                 <PreviewOptionRow>
                   <input
-                    type="checkbox"
+                    type={question.type === "multipleChoice" ? "radio" : "checkbox"}
                     checked={isSelected}
-                    onChange={() => toggleCheckbox(opt.id)}
+                    onChange={() => handleSelectOption(opt.id)}
                   />
 
-                  {opt.isOther ? (
-                    <PreviewOtherWrap>
-                      <span>Outros:</span>
-                      <PreviewOtherInput
-                        placeholder="Digite sua resposta"
-                        onFocus={() => toggleCheckbox(opt.id)}
-                      />
-                    </PreviewOtherWrap>
-                  ) : (
-                    <span>{opt.label || "Opção sem texto"}</span>
-                  )}
+                  <span>{opt.label}</span>
                 </PreviewOptionRow>
 
-                {question.sizeEnabled && (isSelected || hasSize) && !opt.isOther && (
+                {question.sizeEnabled && (isSelected || hasSize) && (
                   <div style={{ display: "flex", gap: 8, paddingLeft: 24 }}>
                     <input
                       placeholder="Altura"
