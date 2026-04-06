@@ -36,6 +36,7 @@ type Props = {
     type?: QuestionType;
     jumpEnabled?: boolean;
     includeTime?: boolean;
+    sizeEnabled?: boolean;
   }) => void;
   onAddOption: () => void;
   onAddOtherOption: () => void;
@@ -320,7 +321,12 @@ export default function QuestionCard({
 
     onUpdate({
       type: nextType,
-      ...(nextType !== "date" ? { includeTime: false } : {})
+      ...(nextType !== "date"
+        ? { includeTime: false }
+        : {}),
+      ...((nextType !== "multipleChoice" && nextType !== "checkbox")
+        ? { sizeEnabled: false }
+        : {})
     });
   }
 
@@ -516,7 +522,11 @@ export default function QuestionCard({
 
   function renderAnswerArea() {
     if (isText) return renderTextInput();
-    if (isDate) return question.includeTime ? renderDateTimeInput() : renderDateOnlyInput();
+    if (isDate) {
+      return question.includeTime
+        ? renderDateTimeInput()
+        : renderDateOnlyInput();
+    }
     if (isOptions) return renderOptions();
     return null;
   }
@@ -562,6 +572,24 @@ export default function QuestionCard({
           <IconDangerBtn title="Remover pergunta" onClick={onRemove}>
             <Trash size={18} weight="bold" />
           </IconDangerBtn>
+
+          {isOptions && (
+            <ToggleWrap as="label" style={{ cursor: "pointer" }}>
+              <ToggleLabel>Tamanho</ToggleLabel>
+
+              <ToggleInput
+                type="checkbox"
+                checked={!!question.sizeEnabled}
+                onChange={() =>
+                  onUpdate({ sizeEnabled: !question.sizeEnabled })
+                }
+              />
+
+              <ToggleSwitch data-on={question.sizeEnabled ? "true" : "false"}>
+                <ToggleKnob data-on={question.sizeEnabled ? "true" : "false"} />
+              </ToggleSwitch>
+            </ToggleWrap>
+          )}
 
           {canHaveJump && (
             <ToggleWrap as="label" style={{ cursor: "pointer" }}>

@@ -16,6 +16,7 @@ type QuestionUpdateData = Partial<{
   type: QuestionType;
   jumpEnabled: boolean;
   includeTime: boolean;
+  sizeEnabled: boolean; // 🔥 NOVO
 }>;
 
 type SectionUpdateData = Partial<{
