@@ -33,6 +33,7 @@ const HEADERS = {
     "required",
     "jump_enabled",
     "include_time",
+    "size_enabled",
     "sort_order"
   ],
   options: [
@@ -206,6 +207,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 questionRow.type === "date"
                   ? parseBool(questionRow.include_time)
                   : false,
+              sizeEnabled: parseBool(questionRow.size_enabled),
               options
             };
           });

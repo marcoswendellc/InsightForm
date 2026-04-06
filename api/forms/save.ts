@@ -24,6 +24,7 @@ type QuestionPayload = {
   required?: boolean;
   jumpEnabled?: boolean;
   includeTime?: boolean;
+  sizeEnabled?: boolean;
   options?: OptionPayload[];
 };
 
@@ -95,6 +96,7 @@ const HEADERS = {
     "required",
     "jump_enabled",
     "include_time",
+    "size_enabled",
     "sort_order"
   ],
   options: [
@@ -298,6 +300,7 @@ function buildQuestionRowsAndOptionRows(
         question.required ? "true" : "false",
         question.jumpEnabled ? "true" : "false",
         question.includeTime ? "true" : "false",
+        question.sizeEnabled ? "true" : "false",
         String(qi)
       ]);
 
