@@ -635,7 +635,7 @@ export default function QuestionPreview({
                 {checked && sizeEnabled ? (
                   <PreviewSizeBlock>
                     <div>
-                      <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
+                      <PreviewSizeFieldLabel>Largura </PreviewSizeFieldLabel>
                       <PreviewSizeInput
                         type="text"
                         inputMode="decimal"
@@ -650,7 +650,7 @@ export default function QuestionPreview({
                     </div>
 
                     <div>
-                      <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
+                      <PreviewSizeFieldLabel>Altura </PreviewSizeFieldLabel>
                       <PreviewSizeInput
                         type="text"
                         inputMode="decimal"

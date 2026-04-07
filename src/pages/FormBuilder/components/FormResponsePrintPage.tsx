@@ -9,6 +9,35 @@ type Props = {
   onDownloaded?: () => void;
 };
 
+type SizeValue = {
+  width?: string | number | null;
+  height?: string | number | null;
+  unit?: string | null;
+};
+
+type ChoiceAnswerObject = {
+  optionId?: string;
+  optionIds?: string[];
+  label?: string;
+  otherText?: string;
+  size?: SizeValue | null;
+};
+
+type CheckboxAnswerObject = {
+  optionId?: string;
+  label?: string;
+  otherText?: string;
+  size?: SizeValue | null;
+};
+
+type AnswerValue =
+  | string
+  | string[]
+  | ChoiceAnswerObject
+  | CheckboxAnswerObject[]
+  | null
+  | undefined;
+
 type ResponseData = {
   id: string;
   form_id: string;
@@ -17,7 +46,7 @@ type ResponseData = {
   respondent_id?: string;
   respondent_name?: string;
   respondent_email?: string;
-  answers?: Record<string, string | string[]>;
+  answers?: Record<string, AnswerValue>;
 };
 
 type PrintableQuestion = {
@@ -81,52 +110,259 @@ function formatDateAnswer(value?: string) {
   return date.toLocaleDateString("pt-BR");
 }
 
-function hasMeaningfulAnswer(
-  questionType: string,
-  value: string | string[] | undefined,
-  options?: Array<{ id: string; label: string }>
-) {
-  if (questionType === "checkbox") {
-    return Array.isArray(value) && value.length > 0;
-  }
-
-  if (questionType === "multipleChoice") {
-    if (typeof value !== "string" || !value.trim()) return false;
-    return !!options?.some((opt) => opt.id === value);
-  }
-
-  if (questionType === "date") {
-    return typeof value === "string" && value.trim() !== "";
-  }
-
-  return typeof value === "string" && value.trim() !== "";
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function normalizeAnswerValue(value: string | string[] | undefined) {
-  if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "";
-  }
-
-  if (typeof value === "string" && value.trim()) {
-    return value.trim();
-  }
-
+function normalizeTextValue(value: unknown) {
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return value.trim();
   return "";
 }
 
-function getBooleanLabel(value: string | string[] | undefined) {
+function isFilledText(value: unknown) {
+  return normalizeTextValue(value) !== "";
+}
+
+function extractSizeValue(value: unknown): SizeValue | null {
+  if (!isPlainObject(value)) return null;
+
+  const width = normalizeTextValue(value.width);
+  const height = normalizeTextValue(value.height);
+  const unit = normalizeTextValue(value.unit);
+
+  if (!width && !height && !unit) return null;
+
+  return {
+    width,
+    height,
+    unit
+  };
+}
+
+function formatSize(size?: SizeValue | null) {
+  if (!size) return "";
+
+  const parts: string[] = [];
+
+  if (isFilledText(size.width)) {
+    parts.push(`Largura: ${normalizeTextValue(size.width)}`);
+  }
+
+  if (isFilledText(size.height)) {
+    parts.push(`Altura: ${normalizeTextValue(size.height)}`);
+  }
+
+  if (isFilledText(size.unit)) {
+    parts.push(`Unidade: ${normalizeTextValue(size.unit)}`);
+  }
+
+  return parts.join(" | ");
+}
+
+function sanitizeFileName(name: string) {
+  const sanitized = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split("")
+    .map((char) => {
+      const code = char.charCodeAt(0);
+      return code < 32 || '<>:"/\\|?*'.includes(char) ? "_" : char;
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return sanitized || "formulario";
+}
+
+function getBooleanLabel(value: AnswerValue) {
   const raw = Array.isArray(value) ? value[0] ?? "" : value ?? "";
   const normalized = String(raw).trim().toLowerCase();
 
   if (["true", "1", "sim", "yes"].includes(normalized)) return "Sim";
   if (["false", "0", "não", "nao", "no"].includes(normalized)) return "Não";
 
-  return raw || "";
+  return String(raw || "");
+}
+
+function getOptionLabel(
+  optionId: string,
+  options?: Array<{
+    id: string;
+    label: string;
+  }>
+) {
+  return options?.find((opt) => opt.id === optionId)?.label || "";
+}
+
+function normalizeAnswerValue(value: AnswerValue) {
+  if (Array.isArray(value)) {
+    if (!value.length) return "";
+
+    if (value.every((item) => typeof item === "string")) {
+      return value.join(", ");
+    }
+
+    const labels = value
+      .map((item) => {
+        if (!isPlainObject(item)) return "";
+        return normalizeTextValue(item.label) || normalizeTextValue(item.optionId);
+      })
+      .filter(Boolean);
+
+    return labels.join(", ");
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return value.trim();
+  }
+
+  if (isPlainObject(value)) {
+    return (
+      normalizeTextValue(value.label) ||
+      normalizeTextValue(value.otherText) ||
+      normalizeTextValue(value.optionId)
+    );
+  }
+
+  return "";
+}
+
+function hasMeaningfulAnswer(
+  questionType: string,
+  value: AnswerValue,
+  options?: Array<{ id: string; label: string }>
+) {
+  if (questionType === "checkbox") {
+    if (Array.isArray(value)) {
+      if (value.length === 0) return false;
+
+      if (value.some((item) => typeof item === "string" && item.trim())) {
+        return true;
+      }
+
+      if (
+        value.some(
+          (item) =>
+            isPlainObject(item) &&
+            (isFilledText(item.optionId) ||
+              isFilledText(item.label) ||
+              isFilledText(item.otherText) ||
+              !!extractSizeValue(item.size))
+        )
+      ) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  if (questionType === "multipleChoice") {
+    if (typeof value === "string") {
+      if (!value.trim()) return false;
+      return !!options?.some((opt) => opt.id === value);
+    }
+
+    if (isPlainObject(value)) {
+      return (
+        isFilledText(value.optionId) ||
+        isFilledText(value.label) ||
+        isFilledText(value.otherText) ||
+        !!extractSizeValue(value.size)
+      );
+    }
+
+    return false;
+  }
+
+  if (questionType === "date") {
+    return typeof value === "string" && value.trim() !== "";
+  }
+
+  if (questionType === "boolean") {
+    return normalizeTextValue(value) !== "";
+  }
+
+  return normalizeAnswerValue(value) !== "";
+}
+
+function formatMultipleChoiceAnswer(params: {
+  value: AnswerValue;
+  options?: Array<{ id: string; label: string }>;
+}) {
+  const { value, options } = params;
+
+  if (typeof value === "string") {
+    return getOptionLabel(value, options);
+  }
+
+  if (!isPlainObject(value)) {
+    return "";
+  }
+
+  const optionId = normalizeTextValue(value.optionId);
+  const optionLabel =
+    normalizeTextValue(value.label) ||
+    (optionId ? getOptionLabel(optionId, options) : "");
+  const otherText = normalizeTextValue(value.otherText);
+  const size = extractSizeValue(value.size);
+
+  const baseLabel = optionLabel || otherText || optionId;
+  const sizeLabel = formatSize(size);
+
+  if (baseLabel && sizeLabel) {
+    return `${baseLabel} — ${sizeLabel}`;
+  }
+
+  return baseLabel || sizeLabel;
+}
+
+function formatCheckboxAnswer(params: {
+  value: AnswerValue;
+  options?: Array<{ id: string; label: string }>;
+}) {
+  const { value, options } = params;
+
+  if (!Array.isArray(value) || !value.length) return "";
+
+  if (value.every((item) => typeof item === "string")) {
+    const labels = value
+      .map((id) => getOptionLabel(id, options))
+      .filter(Boolean);
+
+    return labels.join(", ");
+  }
+
+  const labels = value
+    .map((item) => {
+      if (!isPlainObject(item)) return "";
+
+      const optionId = normalizeTextValue(item.optionId);
+      const optionLabel =
+        normalizeTextValue(item.label) ||
+        (optionId ? getOptionLabel(optionId, options) : "");
+      const otherText = normalizeTextValue(item.otherText);
+      const size = extractSizeValue(item.size);
+
+      const baseLabel = optionLabel || otherText || optionId;
+      const sizeLabel = formatSize(size);
+
+      if (baseLabel && sizeLabel) {
+        return `${baseLabel} — ${sizeLabel}`;
+      }
+
+      return baseLabel || sizeLabel;
+    })
+    .filter(Boolean);
+
+  return labels.join("\n");
 }
 
 function getAnswerLabel(params: {
   questionType: string;
-  value: string | string[] | undefined;
+  value: AnswerValue;
   options?: Array<{
     id: string;
     label: string;
@@ -135,23 +371,11 @@ function getAnswerLabel(params: {
   const { questionType, value, options } = params;
 
   if (questionType === "multipleChoice") {
-    const selectedId = typeof value === "string" ? value : "";
-    const selected = options?.find((opt) => opt.id === selectedId);
-    return selected?.label || "";
+    return formatMultipleChoiceAnswer({ value, options });
   }
 
   if (questionType === "checkbox") {
-    const ids = Array.isArray(value) ? value : [];
-    if (!ids.length) return "";
-
-    const labels = ids
-      .map((id) => {
-        const found = options?.find((opt) => opt.id === id);
-        return found?.label || "";
-      })
-      .filter(Boolean);
-
-    return labels.join(", ");
+    return formatCheckboxAnswer({ value, options });
   }
 
   if (questionType === "date") {
@@ -163,23 +387,6 @@ function getAnswerLabel(params: {
   }
 
   return normalizeAnswerValue(value);
-}
-
-function sanitizeFileName(name: string) {
-  // Remove control characters (0-31) and other invalid filename characters
-  const sanitized = name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .split('')
-    .map(char => {
-      const code = char.charCodeAt(0);
-      return (code < 32 || '<>:"/\\|?*'.includes(char)) ? '_' : char;
-    })
-    .join('')
-    .replace(/\s+/g, " ")
-    .trim();
-
-  return sanitized || "formulario";
 }
 
 function buildPrintableSections(
