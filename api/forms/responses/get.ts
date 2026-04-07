@@ -43,6 +43,7 @@ const HEADERS = {
 type SizeValue = {
   width?: string;
   height?: string;
+  unit?: string;
 };
 
 type ChoiceWithSizeValue = {
