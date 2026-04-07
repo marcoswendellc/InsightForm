@@ -750,21 +750,6 @@ export default function QuestionPreview({
                 {checked && sizeEnabled ? (
                   <PreviewSizeBlock>
                     <div>
-                      <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
-                      <PreviewSizeInput
-                        type="text"
-                        inputMode="decimal"
-                        value={optionSize.width}
-                        onChange={(e) =>
-                          updateCheckboxSize(option.id, "width", e.target.value)
-                        }
-                        onBlur={() => blurCheckboxSize(option.id, "width")}
-                        disabled={disabled}
-                        placeholder="Ex.: 1,20"
-                      />
-                    </div>
-
-                    <div>
                       <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
                         type="text"
@@ -779,6 +764,21 @@ export default function QuestionPreview({
                       />
                     </div>
 
+                    <div>
+                      <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
+                      <PreviewSizeInput
+                        type="text"
+                        inputMode="decimal"
+                        value={optionSize.width}
+                        onChange={(e) =>
+                          updateCheckboxSize(option.id, "width", e.target.value)
+                        }
+                        onBlur={() => blurCheckboxSize(option.id, "width")}
+                        disabled={disabled}
+                        placeholder="Ex.: 1,20"
+                      />
+                    </div>
+                    
                     <div>
                       <PreviewSizeFieldLabel>Unidade</PreviewSizeFieldLabel>
                       <PreviewSizeSelect
