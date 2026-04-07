@@ -127,19 +127,29 @@ function parseSizeFromText(text: string): SizeValue | undefined {
   const normalized = normalizeString(text);
   if (!normalized) return undefined;
 
-  const match = normalized.match(/Tamanho:\s*([\d.,]+)\s*x\s*([\d.,]+)/i);
+  // pega: 1,20 x 0,80 cm
+  const match = normalized.match(
+    /Tamanho:\s*([\d.,]+)\s*x\s*([\d.,]+)\s*(cm|m|mm)?/i
+  );
+
   if (match) {
     return {
       width: match[1],
-      height: match[2]
+      height: match[2],
+      unit: match[3] || ""
     };
   }
 
-  const directMatch = normalized.match(/^([\d.,]+)\s*x\s*([\d.,]+)$/i);
+  // fallback simples
+  const directMatch = normalized.match(
+    /^([\d.,]+)\s*x\s*([\d.,]+)\s*(cm|m|mm)?$/i
+  );
+
   if (directMatch) {
     return {
       width: directMatch[1],
-      height: directMatch[2]
+      height: directMatch[2],
+      unit: directMatch[3] || ""
     };
   }
 
