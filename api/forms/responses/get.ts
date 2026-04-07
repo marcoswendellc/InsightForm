@@ -171,8 +171,27 @@ function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
 
     if (questionType === "checkbox") {
       const currentValue = answers[questionId];
-      const currentList = Array.isArray(currentValue)
-        ? (currentValue as ChoiceWithSizeValue[])
+      const currentStringIds = Array.isArray(currentValue)
+        ? (currentValue as (string | ChoiceWithSizeValue)[]).filter(
+            (item): item is string => typeof item === "string"
+          )
+        : [];
+      const currentObjects = Array.isArray(currentValue)
+        ? (currentValue as (string | ChoiceWithSizeValue)[])
+            .filter((item): item is ChoiceWithSizeValue =>
+              typeof item !== "string"
+            )
+            .map((item) => ({
+              optionId: normalizeString(item.optionId),
+              text: normalizeString(item.text),
+              size: item.size
+                ? {
+                    width: normalizeString(item.size.width),
+                    height: normalizeString(item.size.height),
+                    unit: normalizeString(item.size.unit)
+                  }
+                : undefined
+            }))
         : [];
 
       const checkboxItem: ChoiceWithSizeValue = {
@@ -187,7 +206,29 @@ function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
         checkboxItem.text = textWithoutOptionLabel;
       }
 
-      answers[questionId] = [...currentList, checkboxItem];
+      const hasAdditionalData = !!parsedSize || !!textWithoutOptionLabel;
+
+      if (hasAdditionalData) {
+        const normalizedPreviousObjects = [
+          ...currentObjects,
+          ...currentStringIds.map((id) => ({
+            optionId: id,
+            size: { width: "", height: "", unit: "" }
+          }))
+        ];
+
+        answers[questionId] = [...normalizedPreviousObjects, checkboxItem];
+      } else if (currentObjects.length > 0) {
+        answers[questionId] = [
+          ...currentObjects,
+          { optionId: item.option_id || "", size: { width: "", height: "", unit: "" } }
+        ];
+      } else {
+        answers[questionId] = [...currentStringIds, item.option_id || ""].filter(
+          Boolean
+        );
+      }
+
       continue;
     }
 
@@ -204,7 +245,10 @@ function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
         multipleChoiceValue.text = textWithoutOptionLabel;
       }
 
-      answers[questionId] = multipleChoiceValue;
+      const hasAdditionalData = !!parsedSize || !!textWithoutOptionLabel;
+      answers[questionId] = hasAdditionalData
+        ? multipleChoiceValue
+        : item.option_id || "";
       continue;
     }
 
@@ -318,12 +362,12 @@ export default async function handler(
         answers
       }
     });
-  } catch (e: any) {
+  } catch (e: unknown) {
     console.error("responses/get.ts error:", e);
 
     return res.status(500).json({
       ok: false,
-      error: e?.message ?? "error"
+      error: e instanceof Error ? e.message : "error"
     });
   }
 }

@@ -523,6 +523,28 @@ export default function QuestionPreview({
     onChange(nextItems);
   };
 
+  const wrapperStyle: React.CSSProperties = {
+    display: "grid",
+    gap: 12
+  };
+
+  const questionHeaderStyle: React.CSSProperties = {
+    display: "grid",
+    gap: 4
+  };
+
+  const questionLabelStyle: React.CSSProperties = {
+    fontSize: 18,
+    fontWeight: 700,
+    color: "#202124",
+    lineHeight: 1.4
+  };
+
+  const requiredMarkStyle: React.CSSProperties = {
+    color: "#dc2626",
+    marginLeft: 6
+  };
+
   const fieldCardStyle: React.CSSProperties = {
     display: "grid",
     gap: 10,
@@ -541,7 +563,8 @@ export default function QuestionPreview({
 
   const dimGridStyle: React.CSSProperties = {
     display: "grid",
-    gridTemplateColumns: "minmax(90px, 120px) auto minmax(90px, 120px) minmax(74px, 90px)",
+    gridTemplateColumns:
+      "minmax(90px, 120px) auto minmax(90px, 120px) minmax(74px, 90px)",
     gap: 8,
     alignItems: "center"
   };
@@ -553,7 +576,8 @@ export default function QuestionPreview({
     border: "1px solid #d1d5db",
     borderRadius: 10,
     outline: "none",
-    fontSize: 16
+    fontSize: 16,
+    boxSizing: "border-box"
   };
 
   const subtleTextStyle: React.CSSProperties = {
@@ -567,9 +591,20 @@ export default function QuestionPreview({
     marginTop: 2
   };
 
+  const questionHeader = (
+    <div style={questionHeaderStyle}>
+      <div style={questionLabelStyle}>
+        {question.label?.trim() || "Pergunta sem título"}
+        {question.required ? <span style={requiredMarkStyle}>*</span> : null}
+      </div>
+    </div>
+  );
+
   if (question.type === "text") {
     return (
-      <div>
+      <div style={wrapperStyle}>
+        {questionHeader}
+
         <input
           type="text"
           value={typeof value === "string" ? value : ""}
@@ -578,6 +613,7 @@ export default function QuestionPreview({
           placeholder="Sua resposta"
           style={inputStyle}
         />
+
         {error ? <div style={localErrorStyle}>{error}</div> : null}
       </div>
     );
@@ -585,7 +621,9 @@ export default function QuestionPreview({
 
   if (question.type === "date") {
     return (
-      <div>
+      <div style={wrapperStyle}>
+        {questionHeader}
+
         <input
           type={question.includeTime ? "datetime-local" : "date"}
           value={typeof value === "string" ? value : ""}
@@ -593,6 +631,7 @@ export default function QuestionPreview({
           disabled={disabled}
           style={inputStyle}
         />
+
         {error ? <div style={localErrorStyle}>{error}</div> : null}
       </div>
     );
@@ -600,106 +639,114 @@ export default function QuestionPreview({
 
   if (question.type === "multipleChoice") {
     return (
-      <div>
-        {(question.options ?? []).map((option) => {
-          const checked = selectedChoiceId === option.id;
+      <div style={wrapperStyle}>
+        {questionHeader}
 
-          return (
-            <div
-              key={option.id}
-              style={{
-                ...fieldCardStyle,
-                borderColor: checked ? "#f3b4b4" : "#e5e7eb",
-                background: checked ? "#fffafa" : "#fff"
-              }}
-            >
-              <label style={labelRowStyle}>
-                <input
-                  type="radio"
-                  name={optionName}
-                  checked={checked}
-                  disabled={disabled}
-                  onChange={() => updateMultipleChoice(option)}
-                />
-                <span>{option.label}</span>
-              </label>
+        <div>
+          {(question.options ?? []).map((option) => {
+            const checked = selectedChoiceId === option.id;
 
-              {checked && option.isOther ? (
-                <input
-                  type="text"
-                  value={selectedChoiceText}
-                  onChange={(e) => updateMultipleChoiceText(e.target.value)}
-                  disabled={disabled}
-                  placeholder="Digite sua opção"
-                  style={inputStyle}
-                />
-              ) : null}
+            return (
+              <div
+                key={option.id}
+                style={{
+                  ...fieldCardStyle,
+                  borderColor: checked ? "#f3b4b4" : "#e5e7eb",
+                  background: checked ? "#fffafa" : "#fff"
+                }}
+              >
+                <label style={labelRowStyle}>
+                  <input
+                    type="radio"
+                    name={optionName}
+                    checked={checked}
+                    disabled={disabled}
+                    onChange={() => updateMultipleChoice(option)}
+                  />
+                  <span>{option.label}</span>
+                </label>
 
-              {checked && sizeEnabled ? (
-                <>
-                  <div style={dimGridStyle}>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={selectedChoiceSize.width ?? ""}
-                      onChange={(e) =>
-                        updateMultipleChoiceSize("width", e.target.value)
-                      }
-                      onBlur={() => blurMultipleChoiceSize("width")}
-                      disabled={disabled}
-                      placeholder="Largura"
-                      style={inputStyle}
-                    />
+                {checked && option.isOther ? (
+                  <input
+                    type="text"
+                    value={selectedChoiceText}
+                    onChange={(e) => updateMultipleChoiceText(e.target.value)}
+                    disabled={disabled}
+                    placeholder="Digite sua opção"
+                    style={inputStyle}
+                  />
+                ) : null}
 
-                    <div
-                      style={{
-                        textAlign: "center",
-                        fontWeight: 700,
-                        color: "#6b7280"
-                      }}
-                    >
-                      ×
+                {checked && sizeEnabled ? (
+                  <>
+                    <div style={dimGridStyle}>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={selectedChoiceSize.width ?? ""}
+                        onChange={(e) =>
+                          updateMultipleChoiceSize("width", e.target.value)
+                        }
+                        onBlur={() => blurMultipleChoiceSize("width")}
+                        disabled={disabled}
+                        placeholder="Largura"
+                        style={inputStyle}
+                      />
+
+                      <div
+                        style={{
+                          textAlign: "center",
+                          fontWeight: 700,
+                          color: "#6b7280"
+                        }}
+                      >
+                        ×
+                      </div>
+
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={selectedChoiceSize.height ?? ""}
+                        onChange={(e) =>
+                          updateMultipleChoiceSize("height", e.target.value)
+                        }
+                        onBlur={() => blurMultipleChoiceSize("height")}
+                        disabled={disabled}
+                        placeholder="Altura"
+                        style={inputStyle}
+                      />
+
+                      <select
+                        value={normalizeUnit(selectedChoiceSize.unit)}
+                        onChange={(e) =>
+                          updateMultipleChoiceUnit(e.target.value)
+                        }
+                        disabled={disabled}
+                        style={inputStyle}
+                      >
+                        {SIZE_UNITS.map((unit) => (
+                          <option key={unit} value={unit}>
+                            {unit}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={selectedChoiceSize.height ?? ""}
-                      onChange={(e) =>
-                        updateMultipleChoiceSize("height", e.target.value)
-                      }
-                      onBlur={() => blurMultipleChoiceSize("height")}
-                      disabled={disabled}
-                      placeholder="Altura"
-                      style={inputStyle}
-                    />
+                    <div style={subtleTextStyle}>
+                      Informe as dimensões da peça. Exemplo: 120,5 × 80 cm
+                    </div>
 
-                    <select
-                      value={normalizeUnit(selectedChoiceSize.unit)}
-                      onChange={(e) => updateMultipleChoiceUnit(e.target.value)}
-                      disabled={disabled}
-                      style={inputStyle}
-                    >
-                      {SIZE_UNITS.map((unit) => (
-                        <option key={unit} value={unit}>
-                          {unit}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={subtleTextStyle}>
-                    Informe as dimensões da peça. Exemplo: 120,5 × 80 cm
-                  </div>
-
-                  {multipleChoiceLocalError ? (
-                    <div style={localErrorStyle}>{multipleChoiceLocalError}</div>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-          );
-        })}
+                    {multipleChoiceLocalError ? (
+                      <div style={localErrorStyle}>
+                        {multipleChoiceLocalError}
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
 
         {error ? <div style={localErrorStyle}>{error}</div> : null}
       </div>
@@ -708,128 +755,136 @@ export default function QuestionPreview({
 
   if (question.type === "checkbox") {
     return (
-      <div>
-        {(question.options ?? []).map((option) => {
-          const checked = selectedCheckboxIds.includes(option.id);
-          const optionValue =
-            checkboxObjects.find(
-              (item) => normalizeString(item.optionId) === option.id
-            ) ?? {
-              optionId: option.id,
-              text: "",
-              size: { width: "", height: "", unit: "cm" }
+      <div style={wrapperStyle}>
+        {questionHeader}
+
+        <div>
+          {(question.options ?? []).map((option) => {
+            const checked = selectedCheckboxIds.includes(option.id);
+            const optionValue =
+              checkboxObjects.find(
+                (item) => normalizeString(item.optionId) === option.id
+              ) ?? {
+                optionId: option.id,
+                text: "",
+                size: { width: "", height: "", unit: "cm" }
+              };
+
+            const optionSize = {
+              width: normalizeString(optionValue.size?.width),
+              height: normalizeString(optionValue.size?.height),
+              unit: normalizeUnit(optionValue.size?.unit)
             };
 
-          const optionSize = {
-            width: normalizeString(optionValue.size?.width),
-            height: normalizeString(optionValue.size?.height),
-            unit: normalizeUnit(optionValue.size?.unit)
-          };
+            return (
+              <div
+                key={option.id}
+                style={{
+                  ...fieldCardStyle,
+                  borderColor: checked ? "#f3b4b4" : "#e5e7eb",
+                  background: checked ? "#fffafa" : "#fff"
+                }}
+              >
+                <label style={labelRowStyle}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={disabled}
+                    onChange={(e) => toggleCheckbox(option, e.target.checked)}
+                  />
+                  <span>{option.label}</span>
+                </label>
 
-          return (
-            <div
-              key={option.id}
-              style={{
-                ...fieldCardStyle,
-                borderColor: checked ? "#f3b4b4" : "#e5e7eb",
-                background: checked ? "#fffafa" : "#fff"
-              }}
-            >
-              <label style={labelRowStyle}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  disabled={disabled}
-                  onChange={(e) => toggleCheckbox(option, e.target.checked)}
-                />
-                <span>{option.label}</span>
-              </label>
+                {checked && option.isOther ? (
+                  <input
+                    type="text"
+                    value={normalizeString(optionValue.text)}
+                    onChange={(e) => updateCheckboxText(option.id, e.target.value)}
+                    disabled={disabled}
+                    placeholder="Digite sua opção"
+                    style={inputStyle}
+                  />
+                ) : null}
 
-              {checked && option.isOther ? (
-                <input
-                  type="text"
-                  value={normalizeString(optionValue.text)}
-                  onChange={(e) => updateCheckboxText(option.id, e.target.value)}
-                  disabled={disabled}
-                  placeholder="Digite sua opção"
-                  style={inputStyle}
-                />
-              ) : null}
+                {checked && sizeEnabled ? (
+                  <>
+                    <div style={dimGridStyle}>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={optionSize.width}
+                        onChange={(e) =>
+                          updateCheckboxSize(option.id, "width", e.target.value)
+                        }
+                        onBlur={() => blurCheckboxSize(option.id, "width")}
+                        disabled={disabled}
+                        placeholder="Largura"
+                        style={inputStyle}
+                      />
 
-              {checked && sizeEnabled ? (
-                <>
-                  <div style={dimGridStyle}>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={optionSize.width}
-                      onChange={(e) =>
-                        updateCheckboxSize(option.id, "width", e.target.value)
-                      }
-                      onBlur={() => blurCheckboxSize(option.id, "width")}
-                      disabled={disabled}
-                      placeholder="Largura"
-                      style={inputStyle}
-                    />
+                      <div
+                        style={{
+                          textAlign: "center",
+                          fontWeight: 700,
+                          color: "#6b7280"
+                        }}
+                      >
+                        ×
+                      </div>
 
-                    <div
-                      style={{
-                        textAlign: "center",
-                        fontWeight: 700,
-                        color: "#6b7280"
-                      }}
-                    >
-                      ×
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={optionSize.height}
+                        onChange={(e) =>
+                          updateCheckboxSize(option.id, "height", e.target.value)
+                        }
+                        onBlur={() => blurCheckboxSize(option.id, "height")}
+                        disabled={disabled}
+                        placeholder="Altura"
+                        style={inputStyle}
+                      />
+
+                      <select
+                        value={optionSize.unit}
+                        onChange={(e) =>
+                          updateCheckboxUnit(option.id, e.target.value)
+                        }
+                        disabled={disabled}
+                        style={inputStyle}
+                      >
+                        {SIZE_UNITS.map((unit) => (
+                          <option key={unit} value={unit}>
+                            {unit}
+                          </option>
+                        ))}
+                      </select>
                     </div>
 
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={optionSize.height}
-                      onChange={(e) =>
-                        updateCheckboxSize(option.id, "height", e.target.value)
-                      }
-                      onBlur={() => blurCheckboxSize(option.id, "height")}
-                      disabled={disabled}
-                      placeholder="Altura"
-                      style={inputStyle}
-                    />
-
-                    <select
-                      value={optionSize.unit}
-                      onChange={(e) =>
-                        updateCheckboxUnit(option.id, e.target.value)
-                      }
-                      disabled={disabled}
-                      style={inputStyle}
-                    >
-                      {SIZE_UNITS.map((unit) => (
-                        <option key={unit} value={unit}>
-                          {unit}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={subtleTextStyle}>
-                    Informe as dimensões desta peça. Exemplo: 1,20 × 0,80 m
-                  </div>
-
-                  {checkboxLocalErrors[option.id] ? (
-                    <div style={localErrorStyle}>
-                      {checkboxLocalErrors[option.id]}
+                    <div style={subtleTextStyle}>
+                      Informe as dimensões desta peça. Exemplo: 1,20 × 0,80 m
                     </div>
-                  ) : null}
-                </>
-              ) : null}
-            </div>
-          );
-        })}
+
+                    {checkboxLocalErrors[option.id] ? (
+                      <div style={localErrorStyle}>
+                        {checkboxLocalErrors[option.id]}
+                      </div>
+                    ) : null}
+                  </>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
 
         {error ? <div style={localErrorStyle}>{error}</div> : null}
       </div>
     );
   }
 
-  return null;
+  return (
+    <div style={wrapperStyle}>
+      {questionHeader}
+    </div>
+  );
 }
