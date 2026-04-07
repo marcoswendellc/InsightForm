@@ -21,6 +21,11 @@ type ChoiceAnswerObject = {
   label?: string;
   otherText?: string;
   size?: SizeValue | null;
+  unit?: string | null;
+  unidade?: string | null;
+  sizeUnit?: string | null;
+  measureUnit?: string | null;
+  unitLabel?: string | null;
 };
 
 type CheckboxAnswerObject = {
@@ -28,6 +33,11 @@ type CheckboxAnswerObject = {
   label?: string;
   otherText?: string;
   size?: SizeValue | null;
+  unit?: string | null;
+  unidade?: string | null;
+  sizeUnit?: string | null;
+  measureUnit?: string | null;
+  unitLabel?: string | null;
 };
 
 type AnswerValue =
@@ -127,9 +137,21 @@ function isFilledText(value: unknown) {
 function extractSizeValue(value: unknown): SizeValue | null {
   if (!isPlainObject(value)) return null;
 
-  const width = normalizeTextValue(value.width);
-  const height = normalizeTextValue(value.height);
-  const unit = normalizeTextValue(value.unit);
+  const width = normalizeTextValue(
+    value.width ?? value.largura ?? value.sizeWidth
+  );
+
+  const height = normalizeTextValue(
+    value.height ?? value.altura ?? value.sizeHeight
+  );
+
+  const unit = normalizeTextValue(
+    value.unit ??
+      value.unidade ??
+      value.sizeUnit ??
+      value.measureUnit ??
+      value.unitLabel
+  );
 
   if (!width && !height && !unit) return null;
 
@@ -140,21 +162,50 @@ function extractSizeValue(value: unknown): SizeValue | null {
   };
 }
 
+function extractUnitFromAnswerItem(value: unknown) {
+  if (!isPlainObject(value)) return "";
+
+  return normalizeTextValue(
+    value.unit ??
+      value.unidade ??
+      value.sizeUnit ??
+      value.measureUnit ??
+      value.unitLabel
+  );
+}
+
+function mergeSizeWithFallbackUnit(
+  size: SizeValue | null,
+  fallbackUnit: string
+): SizeValue | null {
+  if (!size && !fallbackUnit) return null;
+
+  return {
+    width: size?.width ?? "",
+    height: size?.height ?? "",
+    unit: size?.unit || fallbackUnit || ""
+  };
+}
+
 function formatSize(size?: SizeValue | null) {
   if (!size) return "";
 
+  const width = normalizeTextValue(size.width);
+  const height = normalizeTextValue(size.height);
+  const unit = normalizeTextValue(size.unit);
+
   const parts: string[] = [];
 
-  if (isFilledText(size.width)) {
-    parts.push(`Largura: ${normalizeTextValue(size.width)}`);
+  if (width) {
+    parts.push(`Largura: ${width}${unit ? ` ${unit}` : ""}`);
   }
 
-  if (isFilledText(size.height)) {
-    parts.push(`Altura: ${normalizeTextValue(size.height)}`);
+  if (height) {
+    parts.push(`Altura: ${height}${unit ? ` ${unit}` : ""}`);
   }
 
-  if (isFilledText(size.unit)) {
-    parts.push(`Unidade: ${normalizeTextValue(size.unit)}`);
+  if (!width && !height && unit) {
+    parts.push(`Unidade: ${unit}`);
   }
 
   return parts.join(" | ");
@@ -249,7 +300,12 @@ function hasMeaningfulAnswer(
             (isFilledText(item.optionId) ||
               isFilledText(item.label) ||
               isFilledText(item.otherText) ||
-              !!extractSizeValue(item.size))
+              !!extractSizeValue(item.size) ||
+              isFilledText(item.unit) ||
+              isFilledText(item.unidade) ||
+              isFilledText(item.sizeUnit) ||
+              isFilledText(item.measureUnit) ||
+              isFilledText(item.unitLabel))
         )
       ) {
         return true;
@@ -270,7 +326,12 @@ function hasMeaningfulAnswer(
         isFilledText(value.optionId) ||
         isFilledText(value.label) ||
         isFilledText(value.otherText) ||
-        !!extractSizeValue(value.size)
+        !!extractSizeValue(value.size) ||
+        isFilledText(value.unit) ||
+        isFilledText(value.unidade) ||
+        isFilledText(value.sizeUnit) ||
+        isFilledText(value.measureUnit) ||
+        isFilledText(value.unitLabel)
       );
     }
 
@@ -307,7 +368,11 @@ function formatMultipleChoiceAnswer(params: {
     normalizeTextValue(value.label) ||
     (optionId ? getOptionLabel(optionId, options) : "");
   const otherText = normalizeTextValue(value.otherText);
-  const size = extractSizeValue(value.size);
+
+  const size = mergeSizeWithFallbackUnit(
+    extractSizeValue(value.size),
+    extractUnitFromAnswerItem(value)
+  );
 
   const baseLabel = optionLabel || otherText || optionId;
   const sizeLabel = formatSize(size);
@@ -344,7 +409,11 @@ function formatCheckboxAnswer(params: {
         normalizeTextValue(item.label) ||
         (optionId ? getOptionLabel(optionId, options) : "");
       const otherText = normalizeTextValue(item.otherText);
-      const size = extractSizeValue(item.size);
+
+      const size = mergeSizeWithFallbackUnit(
+        extractSizeValue(item.size),
+        extractUnitFromAnswerItem(item)
+      );
 
       const baseLabel = optionLabel || otherText || optionId;
       const sizeLabel = formatSize(size);
@@ -541,19 +610,28 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
         const element = contentRef.current;
         if (!element) return;
 
+        const pixelRatio =
+          typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+
         const options = {
-          margin: [4, 4, 4, 4] as [number, number, number, number],
+          margin: [3, 3, 3, 3] as [number, number, number, number],
           filename: getPdfFileName(form, responseData),
-          image: { type: "jpeg" as const, quality: 0.98 },
+          image: { type: "png" as const, quality: 1 },
           html2canvas: {
-            scale: 2,
+            scale: Math.max(3, pixelRatio * 2),
             useCORS: true,
-            backgroundColor: "#ffffff"
+            backgroundColor: "#ffffff",
+            letterRendering: true,
+            logging: false,
+            allowTaint: false,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight
           },
           jsPDF: {
             unit: "mm",
             format: "a4",
-            orientation: "portrait" as const
+            orientation: "portrait" as const,
+            compress: true
           },
           pagebreak: {
             mode: ["css", "legacy"] as const
@@ -615,13 +693,15 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
       <div
         ref={contentRef}
         style={{
-          width: "198mm",
+          width: "200mm",
           margin: "0 auto",
           background: "#ffffff",
           color: "#111827",
           fontFamily: '"Inter", "Segoe UI", Arial, sans-serif',
-          padding: "8mm 6mm 6mm",
-          boxSizing: "border-box"
+          padding: "8mm 7mm 7mm",
+          boxSizing: "border-box",
+          WebkitPrintColorAdjust: "exact",
+          printColorAdjust: "exact" as any
         }}
       >
         <div
@@ -666,7 +746,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
           >
             <div
               style={{
-                border: "1px solid #E5E7EB",
+                border: "1px solid #DDE3EA",
                 borderRadius: 10,
                 padding: "10px 12px",
                 background: "#F9FAFB"
@@ -691,7 +771,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
 
             <div
               style={{
-                border: "1px solid #E5E7EB",
+                border: "1px solid #DDE3EA",
                 borderRadius: 10,
                 padding: "10px 12px",
                 background: "#F9FAFB"
@@ -719,7 +799,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
         {printableSections.length === 0 ? (
           <div
             style={{
-              border: "1px solid #E5E7EB",
+              border: "1px solid #DDE3EA",
               borderRadius: 12,
               padding: 16,
               background: "#FAFAFA",
@@ -735,19 +815,19 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
               <section
                 key={section.id}
                 style={{
-                  border: "1px solid #E5E7EB",
+                  border: "1px solid #DDE3EA",
                   borderRadius: 12,
                   overflow: "hidden",
                   background: "#ffffff",
-                  breakInside: "auto",
-                  pageBreakInside: "auto",
+                  breakInside: "avoid",
+                  pageBreakInside: "avoid",
                   marginBottom: 12
                 }}
               >
                 <div
                   style={{
                     background: "#F9FAFB",
-                    borderBottom: "1px solid #E5E7EB",
+                    borderBottom: "1px solid #DDE3EA",
                     padding: "10px 12px",
                     breakAfter: "avoid",
                     pageBreakAfter: "avoid"
@@ -773,7 +853,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
                       style={{
                         borderBottom:
                           questionIndex < section.printableQuestions.length - 1
-                            ? "1px solid #F1F5F9"
+                            ? "1px solid #E8EEF3"
                             : "none",
                         paddingBottom:
                           questionIndex < section.printableQuestions.length - 1
@@ -816,7 +896,7 @@ export default function FormResponsePrintPage({ form, onDownloaded }: Props) {
           style={{
             marginTop: 16,
             paddingTop: 10,
-            borderTop: "1px solid #E5E7EB",
+            borderTop: "1px solid #DDE3EA",
             fontSize: 11,
             color: "#6B7280",
             display: "flex",
