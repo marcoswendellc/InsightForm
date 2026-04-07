@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { ClipboardText } from "phosphor-react";
 import {
@@ -156,14 +156,14 @@ export default function FormBuilderPage() {
 
   const isPublished = isPublishedStatus((state.form as any)?.status);
 
-  const updateParams = (
-    updater: (next: URLSearchParams) => void,
-    replace = true
-  ) => {
-    const next = new URLSearchParams(params);
-    updater(next);
-    setParams(next, { replace });
-  };
+  const updateParams = useCallback(
+    (updater: (next: URLSearchParams) => void, replace = true) => {
+      const next = new URLSearchParams(params);
+      updater(next);
+      setParams(next, { replace });
+    },
+    [params, setParams]
+  );
 
   useEffect(() => {
     if (shouldShowList) {
@@ -209,7 +209,9 @@ export default function FormBuilderPage() {
 
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch {}
+    } catch {
+      // Ignore localStorage errors
+    }
 
     if (params.get("mode") !== "builder" || params.get("id")) {
       updateParams((p) => {
@@ -218,7 +220,7 @@ export default function FormBuilderPage() {
         p.delete("id");
       });
     }
-  }, [actions, isAdmin, isNew, params]);
+  }, [actions, isAdmin, isNew, params, updateParams]);
 
   useEffect(() => {
     if (isNew || !formId) return;

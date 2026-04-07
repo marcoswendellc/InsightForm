@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Mode, Question, QuestionType, Section, GoTo } from "../types";
 import { Trash } from "phosphor-react";
 import {
@@ -310,14 +310,15 @@ export default function QuestionCard({
   const [timeValue, setTimeValue] = useState("");
   const [dateError, setDateError] = useState("");
 
-  useEffect(() => {
-    setDateValue("");
-    setTimeValue("");
-    setDateError("");
-  }, [question.id, question.type, question.includeTime]);
-
   function handleTypeChange(value: string) {
     const nextType = value as QuestionType;
+
+    // Reset date/time values when changing away from date type
+    if (nextType !== "date") {
+      setDateValue("");
+      setTimeValue("");
+      setDateError("");
+    }
 
     onUpdate({
       type: nextType,

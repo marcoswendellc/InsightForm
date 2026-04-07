@@ -377,9 +377,12 @@ export function reducer(state: State, action: Action): State {
             }
 
             const {
-              type,
-              jumpEnabled,
-              includeTime,
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              type: _,
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              jumpEnabled: __,
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
+              includeTime: ___,
               ...rest
             } = action.data as Partial<{
               label: string;

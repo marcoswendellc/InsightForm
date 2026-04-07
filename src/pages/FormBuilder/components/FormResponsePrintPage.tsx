@@ -166,14 +166,20 @@ function getAnswerLabel(params: {
 }
 
 function sanitizeFileName(name: string) {
-  return (
-    name
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
-      .replace(/\s+/g, " ")
-      .trim() || "formulario"
-  );
+  // Remove control characters (0-31) and other invalid filename characters
+  const sanitized = name
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split('')
+    .map(char => {
+      const code = char.charCodeAt(0);
+      return (code < 32 || '<>:"/\\|?*'.includes(char)) ? '_' : char;
+    })
+    .join('')
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return sanitized || "formulario";
 }
 
 function buildPrintableSections(
