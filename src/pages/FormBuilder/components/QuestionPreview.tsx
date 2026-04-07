@@ -1,5 +1,21 @@
 import { useMemo } from "react";
 import type { Question, Option } from "../types";
+import {
+  PreviewQuestionShell,
+  PreviewQuestionLabel,
+  RequiredMark,
+  PreviewTextInput,
+  PreviewDateInput,
+  PreviewOptionsList,
+  PreviewOptionRow,
+  PreviewOtherInput,
+  PreviewErrorText,
+  PreviewSizeBlock,
+  PreviewSizeHint,
+  PreviewSizeFieldLabel,
+  PreviewSizeInput,
+  PreviewSizeSelect
+} from "./preview.styles";
 
 type SizeUnit = "cm" | "m" | "mm";
 
@@ -225,6 +241,33 @@ function getSizeValidationMessage(size?: SizeValue): string {
   return "";
 }
 
+function renderQuestionLabel(question: Question) {
+  return (
+    <PreviewQuestionLabel>
+      {question.label?.trim() || "Pergunta sem título"}
+      {question.required ? <RequiredMark>*</RequiredMark> : null}
+    </PreviewQuestionLabel>
+  );
+}
+
+function sizeCardStyle(selected: boolean): React.CSSProperties {
+  return {
+    display: "grid",
+    gap: 10,
+    padding: 16,
+    border: `1px solid ${selected ? "#f3b4b4" : "#e5e7eb"}`,
+    borderRadius: 16,
+    background: selected ? "#fffafa" : "#fff"
+  };
+}
+
+function optionTextStyle(): React.CSSProperties {
+  return {
+    fontSize: 14,
+    lineHeight: 1.45
+  };
+}
+
 export default function QuestionPreview({
   question,
   value,
@@ -308,19 +351,16 @@ export default function QuestionPreview({
 
     if (!option) return;
 
-    if (!sizeEnabled) {
-      onChange(selectedChoiceId);
-      return;
-    }
-
     onChange({
       optionId: selectedChoiceId,
       text,
-      size: {
-        width: selectedChoiceSize.width ?? "",
-        height: selectedChoiceSize.height ?? "",
-        unit: normalizeUnit(selectedChoiceSize.unit)
-      }
+      size: sizeEnabled
+        ? {
+            width: selectedChoiceSize.width ?? "",
+            height: selectedChoiceSize.height ?? "",
+            unit: normalizeUnit(selectedChoiceSize.unit)
+          }
+        : undefined
     });
   };
 
@@ -523,139 +563,55 @@ export default function QuestionPreview({
     onChange(nextItems);
   };
 
-  const wrapperStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 12
-  };
-
-  const questionHeaderStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 4
-  };
-
-  const questionLabelStyle: React.CSSProperties = {
-    fontSize: 18,
-    fontWeight: 700,
-    color: "#202124",
-    lineHeight: 1.4
-  };
-
-  const requiredMarkStyle: React.CSSProperties = {
-    color: "#dc2626",
-    marginLeft: 6
-  };
-
-  const fieldCardStyle: React.CSSProperties = {
-    display: "grid",
-    gap: 10,
-    marginBottom: 12,
-    padding: 12,
-    border: "1px solid #e5e7eb",
-    borderRadius: 14,
-    background: "#fff"
-  };
-
-  const labelRowStyle: React.CSSProperties = {
-    display: "flex",
-    alignItems: "center",
-    gap: 10
-  };
-
-  const dimGridStyle: React.CSSProperties = {
-    display: "grid",
-    gridTemplateColumns:
-      "minmax(90px, 120px) auto minmax(90px, 120px) minmax(74px, 90px)",
-    gap: 8,
-    alignItems: "center"
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    height: 40,
-    padding: "0 12px",
-    border: "1px solid #d1d5db",
-    borderRadius: 10,
-    outline: "none",
-    fontSize: 16,
-    boxSizing: "border-box"
-  };
-
-  const subtleTextStyle: React.CSSProperties = {
-    fontSize: 12,
-    color: "#6b7280"
-  };
-
-  const localErrorStyle: React.CSSProperties = {
-    fontSize: 13,
-    color: "#dc2626",
-    marginTop: 2
-  };
-
-  const questionHeader = (
-    <div style={questionHeaderStyle}>
-      <div style={questionLabelStyle}>
-        {question.label?.trim() || "Pergunta sem título"}
-        {question.required ? <span style={requiredMarkStyle}>*</span> : null}
-      </div>
-    </div>
-  );
-
   if (question.type === "text") {
     return (
-      <div style={wrapperStyle}>
-        {questionHeader}
+      <PreviewQuestionShell data-error={!!error}>
+        {renderQuestionLabel(question)}
 
-        <input
+        <PreviewTextInput
           type="text"
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           placeholder="Sua resposta"
-          style={inputStyle}
+          data-error={!!error}
         />
 
-        {error ? <div style={localErrorStyle}>{error}</div> : null}
-      </div>
+        {error ? <PreviewErrorText>{error}</PreviewErrorText> : null}
+      </PreviewQuestionShell>
     );
   }
 
   if (question.type === "date") {
     return (
-      <div style={wrapperStyle}>
-        {questionHeader}
+      <PreviewQuestionShell data-error={!!error}>
+        {renderQuestionLabel(question)}
 
-        <input
+        <PreviewDateInput
           type={question.includeTime ? "datetime-local" : "date"}
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
-          style={inputStyle}
+          data-error={!!error}
         />
 
-        {error ? <div style={localErrorStyle}>{error}</div> : null}
-      </div>
+        {error ? <PreviewErrorText>{error}</PreviewErrorText> : null}
+      </PreviewQuestionShell>
     );
   }
 
   if (question.type === "multipleChoice") {
     return (
-      <div style={wrapperStyle}>
-        {questionHeader}
+      <PreviewQuestionShell data-error={!!error}>
+        {renderQuestionLabel(question)}
 
-        <div>
+        <PreviewOptionsList>
           {(question.options ?? []).map((option) => {
             const checked = selectedChoiceId === option.id;
 
             return (
-              <div
-                key={option.id}
-                style={{
-                  ...fieldCardStyle,
-                  borderColor: checked ? "#f3b4b4" : "#e5e7eb",
-                  background: checked ? "#fffafa" : "#fff"
-                }}
-              >
-                <label style={labelRowStyle}>
+              <div key={option.id} style={sizeCardStyle(checked)}>
+                <PreviewOptionRow>
                   <input
                     type="radio"
                     name={optionName}
@@ -663,24 +619,24 @@ export default function QuestionPreview({
                     disabled={disabled}
                     onChange={() => updateMultipleChoice(option)}
                   />
-                  <span>{option.label}</span>
-                </label>
+                  <span style={optionTextStyle()}>{option.label}</span>
+                </PreviewOptionRow>
 
                 {checked && option.isOther ? (
-                  <input
+                  <PreviewOtherInput
                     type="text"
                     value={selectedChoiceText}
                     onChange={(e) => updateMultipleChoiceText(e.target.value)}
                     disabled={disabled}
                     placeholder="Digite sua opção"
-                    style={inputStyle}
                   />
                 ) : null}
 
                 {checked && sizeEnabled ? (
-                  <>
-                    <div style={dimGridStyle}>
-                      <input
+                  <PreviewSizeBlock>
+                    <div>
+                      <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
+                      <PreviewSizeInput
                         type="text"
                         inputMode="decimal"
                         value={selectedChoiceSize.width ?? ""}
@@ -689,21 +645,13 @@ export default function QuestionPreview({
                         }
                         onBlur={() => blurMultipleChoiceSize("width")}
                         disabled={disabled}
-                        placeholder="Largura"
-                        style={inputStyle}
+                        placeholder="Ex.: 1,20"
                       />
+                    </div>
 
-                      <div
-                        style={{
-                          textAlign: "center",
-                          fontWeight: 700,
-                          color: "#6b7280"
-                        }}
-                      >
-                        ×
-                      </div>
-
-                      <input
+                    <div>
+                      <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
+                      <PreviewSizeInput
                         type="text"
                         inputMode="decimal"
                         value={selectedChoiceSize.height ?? ""}
@@ -712,53 +660,54 @@ export default function QuestionPreview({
                         }
                         onBlur={() => blurMultipleChoiceSize("height")}
                         disabled={disabled}
-                        placeholder="Altura"
-                        style={inputStyle}
+                        placeholder="Ex.: 0,80"
                       />
+                    </div>
 
-                      <select
+                    <div>
+                      <PreviewSizeFieldLabel>Unidade</PreviewSizeFieldLabel>
+                      <PreviewSizeSelect
                         value={normalizeUnit(selectedChoiceSize.unit)}
                         onChange={(e) =>
                           updateMultipleChoiceUnit(e.target.value)
                         }
                         disabled={disabled}
-                        style={inputStyle}
                       >
                         {SIZE_UNITS.map((unit) => (
                           <option key={unit} value={unit}>
                             {unit}
                           </option>
                         ))}
-                      </select>
+                      </PreviewSizeSelect>
                     </div>
 
-                    <div style={subtleTextStyle}>
-                      Informe as dimensões da peça. Exemplo: 120,5 × 80 cm
-                    </div>
+                    <PreviewSizeHint>
+                      Informe as dimensões da peça. Exemplo: 1,20 × 0,80 m
+                    </PreviewSizeHint>
 
                     {multipleChoiceLocalError ? (
-                      <div style={localErrorStyle}>
+                      <PreviewErrorText>
                         {multipleChoiceLocalError}
-                      </div>
+                      </PreviewErrorText>
                     ) : null}
-                  </>
+                  </PreviewSizeBlock>
                 ) : null}
               </div>
             );
           })}
-        </div>
+        </PreviewOptionsList>
 
-        {error ? <div style={localErrorStyle}>{error}</div> : null}
-      </div>
+        {error ? <PreviewErrorText>{error}</PreviewErrorText> : null}
+      </PreviewQuestionShell>
     );
   }
 
   if (question.type === "checkbox") {
     return (
-      <div style={wrapperStyle}>
-        {questionHeader}
+      <PreviewQuestionShell data-error={!!error}>
+        {renderQuestionLabel(question)}
 
-        <div>
+        <PreviewOptionsList>
           {(question.options ?? []).map((option) => {
             const checked = selectedCheckboxIds.includes(option.id);
             const optionValue =
@@ -777,39 +726,32 @@ export default function QuestionPreview({
             };
 
             return (
-              <div
-                key={option.id}
-                style={{
-                  ...fieldCardStyle,
-                  borderColor: checked ? "#f3b4b4" : "#e5e7eb",
-                  background: checked ? "#fffafa" : "#fff"
-                }}
-              >
-                <label style={labelRowStyle}>
+              <div key={option.id} style={sizeCardStyle(checked)}>
+                <PreviewOptionRow>
                   <input
                     type="checkbox"
                     checked={checked}
                     disabled={disabled}
                     onChange={(e) => toggleCheckbox(option, e.target.checked)}
                   />
-                  <span>{option.label}</span>
-                </label>
+                  <span style={optionTextStyle()}>{option.label}</span>
+                </PreviewOptionRow>
 
                 {checked && option.isOther ? (
-                  <input
+                  <PreviewOtherInput
                     type="text"
                     value={normalizeString(optionValue.text)}
                     onChange={(e) => updateCheckboxText(option.id, e.target.value)}
                     disabled={disabled}
                     placeholder="Digite sua opção"
-                    style={inputStyle}
                   />
                 ) : null}
 
                 {checked && sizeEnabled ? (
-                  <>
-                    <div style={dimGridStyle}>
-                      <input
+                  <PreviewSizeBlock>
+                    <div>
+                      <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
+                      <PreviewSizeInput
                         type="text"
                         inputMode="decimal"
                         value={optionSize.width}
@@ -818,21 +760,13 @@ export default function QuestionPreview({
                         }
                         onBlur={() => blurCheckboxSize(option.id, "width")}
                         disabled={disabled}
-                        placeholder="Largura"
-                        style={inputStyle}
+                        placeholder="Ex.: 1,20"
                       />
+                    </div>
 
-                      <div
-                        style={{
-                          textAlign: "center",
-                          fontWeight: 700,
-                          color: "#6b7280"
-                        }}
-                      >
-                        ×
-                      </div>
-
-                      <input
+                    <div>
+                      <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
+                      <PreviewSizeInput
                         type="text"
                         inputMode="decimal"
                         value={optionSize.height}
@@ -841,50 +775,51 @@ export default function QuestionPreview({
                         }
                         onBlur={() => blurCheckboxSize(option.id, "height")}
                         disabled={disabled}
-                        placeholder="Altura"
-                        style={inputStyle}
+                        placeholder="Ex.: 0,80"
                       />
+                    </div>
 
-                      <select
+                    <div>
+                      <PreviewSizeFieldLabel>Unidade</PreviewSizeFieldLabel>
+                      <PreviewSizeSelect
                         value={optionSize.unit}
                         onChange={(e) =>
                           updateCheckboxUnit(option.id, e.target.value)
                         }
                         disabled={disabled}
-                        style={inputStyle}
                       >
                         {SIZE_UNITS.map((unit) => (
                           <option key={unit} value={unit}>
                             {unit}
                           </option>
                         ))}
-                      </select>
+                      </PreviewSizeSelect>
                     </div>
 
-                    <div style={subtleTextStyle}>
+                    <PreviewSizeHint>
                       Informe as dimensões desta peça. Exemplo: 1,20 × 0,80 m
-                    </div>
+                    </PreviewSizeHint>
 
                     {checkboxLocalErrors[option.id] ? (
-                      <div style={localErrorStyle}>
+                      <PreviewErrorText>
                         {checkboxLocalErrors[option.id]}
-                      </div>
+                      </PreviewErrorText>
                     ) : null}
-                  </>
+                  </PreviewSizeBlock>
                 ) : null}
               </div>
             );
           })}
-        </div>
+        </PreviewOptionsList>
 
-        {error ? <div style={localErrorStyle}>{error}</div> : null}
-      </div>
+        {error ? <PreviewErrorText>{error}</PreviewErrorText> : null}
+      </PreviewQuestionShell>
     );
   }
 
   return (
-    <div style={wrapperStyle}>
-      {questionHeader}
-    </div>
+    <PreviewQuestionShell data-error={false}>
+      {renderQuestionLabel(question)}
+    </PreviewQuestionShell>
   );
 }

@@ -1,5 +1,6 @@
 import styled from "styled-components";
 
+
 export const PreviewSectionShell = styled.section`
   background: #ffffff;
   border-radius: 12px;
@@ -27,12 +28,14 @@ export const PreviewSectionDescription = styled.p`
   color: #5f6368;
 `;
 
+
 export const PreviewQuestionsBlock = styled.div`
   margin-top: 24px;
   display: flex;
   flex-direction: column;
   gap: 28px;
 `;
+
 
 export const PreviewQuestionShell = styled.div`
   display: flex;
@@ -62,6 +65,7 @@ export const RequiredMark = styled.span`
   margin-left: 4px;
 `;
 
+
 export const PreviewTextInput = styled.input`
   width: 100%;
   border: none;
@@ -77,7 +81,7 @@ export const PreviewTextInput = styled.input`
   }
 
   &:focus {
-    border-bottom: 2px solid #673ab7;
+    border-bottom: 2px solid #ed1c24;
   }
 
   &::placeholder {
@@ -85,28 +89,22 @@ export const PreviewTextInput = styled.input`
   }
 `;
 
-export const PreviewDateInput = styled.input`
-  width: 100%;
-  border: none;
-  border-bottom: 1px solid #dadce0;
-  background: transparent;
-  padding: 10px 0;
-  font-size: 14px;
-  color: #202124;
-  outline: none;
+export const PreviewDateInput = styled(PreviewTextInput)``;
 
-  &[data-error="true"] {
-    border-bottom: 2px solid #d93025;
-  }
-
-  &:focus {
-    border-bottom: 2px solid #673ab7;
-  }
-`;
 
 export const PreviewOptionsList = styled.div`
   display: grid;
   gap: 12px;
+`;
+
+export const PreviewOptionCard = styled.div<{ $checked?: boolean }>`
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid ${({ $checked }) => ($checked ? "#f3b4b4" : "#e5e7eb")};
+  border-radius: 16px;
+  background: ${({ $checked }) => ($checked ? "#fffafa" : "#fff")};
+  transition: all 0.2s ease;
 `;
 
 export const PreviewOptionRow = styled.label`
@@ -118,15 +116,13 @@ export const PreviewOptionRow = styled.label`
   cursor: pointer;
 `;
 
-export const PreviewOtherWrap = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
+export const PreviewOptionText = styled.span`
+  font-size: 14px;
+  line-height: 1.45;
 `;
 
 export const PreviewOtherInput = styled.input`
-  flex: 1;
+  width: 100%;
   border: none;
   border-bottom: 1px solid #dadce0;
   background: transparent;
@@ -136,40 +132,12 @@ export const PreviewOtherInput = styled.input`
   outline: none;
 
   &:focus {
-    border-bottom: 2px solid #673ab7;
+    border-bottom: 2px solid #ed1c24;
   }
 
   &::placeholder {
     color: #5f6368;
   }
-`;
-
-export const PreviewErrorText = styled.div`
-  margin-top: 10px;
-  font-size: 12px;
-  font-weight: 500;
-  color: #d93025;
-`;
-
-export const PreviewDateTimeRow = styled.div`
-  display: flex;
-  gap: 16px;
-  align-items: flex-end;
-  flex-wrap: wrap;
-`;
-
-export const PreviewDateTimeField = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  flex: 1 1 220px;
-  min-width: 160px;
-`;
-
-export const PreviewDateTimeLabel = styled.span`
-  font-size: 12px;
-  font-weight: 600;
-  color: #5f6368;
 `;
 
 export const PreviewSizeBlock = styled.div`
@@ -179,9 +147,10 @@ export const PreviewSizeBlock = styled.div`
   align-items: flex-start;
 `;
 
-export const PreviewSizeHint = styled.div`
-  font-size: 12px;
-  color: #6b7280;
+export const PreviewSizeField = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 `;
 
 export const PreviewSizeFieldLabel = styled.span`
@@ -191,8 +160,7 @@ export const PreviewSizeFieldLabel = styled.span`
 `;
 
 export const PreviewSizeInput = styled.input`
-  width: 100%;
-  max-width: 180px;
+  width: 180px;
   height: 40px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
@@ -201,20 +169,14 @@ export const PreviewSizeInput = styled.input`
   font-size: 14px;
   color: #202124;
   outline: none;
-  box-sizing: border-box;
 
   &:focus {
     border-color: #ed1c24;
-  }
-
-  &::placeholder {
-    color: #5f6368;
   }
 `;
 
 export const PreviewSizeSelect = styled.select`
-  width: 100%;
-  max-width: 120px;
+  width: 120px;
   height: 40px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
@@ -223,9 +185,20 @@ export const PreviewSizeSelect = styled.select`
   font-size: 14px;
   color: #202124;
   outline: none;
-  box-sizing: border-box;
 
   &:focus {
     border-color: #ed1c24;
   }
+`;
+
+export const PreviewSizeHint = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+`;
+
+export const PreviewErrorText = styled.div`
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #d93025;
 `;
