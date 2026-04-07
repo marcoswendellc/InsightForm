@@ -74,7 +74,15 @@ function isMissingRequiredMultipleChoiceAnswer(
   value: FormAnswerValue | undefined
 ) {
   if (!question.sizeEnabled) {
-    return typeof value !== "string" || value.trim() === "";
+    if (typeof value === "string") {
+      return value.trim() === "";
+    }
+
+    if (isChoiceWithSizeValue(value)) {
+      return !value.optionId?.trim();
+    }
+
+    return true;
   }
 
   if (!isChoiceWithSizeValue(value)) {
