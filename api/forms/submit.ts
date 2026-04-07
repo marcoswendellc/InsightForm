@@ -4,7 +4,22 @@ import crypto from "crypto";
 
 const uuid = () => crypto.randomUUID();
 
-type AnswerValue = string | string[];
+type SizeValue = {
+  width?: string;
+  height?: string;
+};
+
+type ChoiceWithSizeValue = {
+  optionId?: string;
+  text?: string;
+  size?: SizeValue;
+};
+
+type AnswerValue =
+  | string
+  | string[]
+  | ChoiceWithSizeValue
+  | ChoiceWithSizeValue[];
 
 type SubmitAnswer = {
   questionId: string;
@@ -214,6 +229,116 @@ function normalizeBody(body: SubmitRequestBody) {
   };
 }
 
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isChoiceWithSizeValue(value: unknown): value is ChoiceWithSizeValue {
+  return isObject(value);
+}
+
+function normalizeString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function formatSize(size?: SizeValue): string {
+  if (!size) return "";
+
+  const width = normalizeString(size.width);
+  const height = normalizeString(size.height);
+
+  if (width && height) return `${width}x${height}`;
+  if (width) return width;
+  if (height) return height;
+
+  return "";
+}
+
+function buildChoiceAnswerText(params: {
+  optionLabel?: string;
+  extraText?: string;
+  size?: SizeValue;
+}) {
+  const parts: string[] = [];
+
+  const optionLabel = normalizeString(params.optionLabel);
+  const extraText = normalizeString(params.extraText);
+  const sizeText = formatSize(params.size);
+
+  if (optionLabel) parts.push(optionLabel);
+  if (extraText) parts.push(extraText);
+  if (sizeText) parts.push(`Tamanho: ${sizeText}`);
+
+  return parts.join(" | ");
+}
+
+function extractMultipleChoiceValue(value: AnswerValue): {
+  optionId: string;
+  answerText: string;
+} {
+  if (typeof value === "string") {
+    return {
+      optionId: value,
+      answerText: ""
+    };
+  }
+
+  if (isChoiceWithSizeValue(value)) {
+    return {
+      optionId: normalizeString(value.optionId),
+      answerText: buildChoiceAnswerText({
+        extraText: value.text,
+        size: value.size
+      })
+    };
+  }
+
+  return {
+    optionId: "",
+    answerText: ""
+  };
+}
+
+function extractCheckboxValues(value: AnswerValue): Array<{
+  optionId: string;
+  answerText: string;
+}> {
+  if (Array.isArray(value)) {
+    return value.map((item) => {
+      if (typeof item === "string") {
+        return {
+          optionId: item,
+          answerText: ""
+        };
+      }
+
+      if (isChoiceWithSizeValue(item)) {
+        return {
+          optionId: normalizeString(item.optionId),
+          answerText: buildChoiceAnswerText({
+            extraText: item.text,
+            size: item.size
+          })
+        };
+      }
+
+      return {
+        optionId: "",
+        answerText: ""
+      };
+    });
+  }
+
+  return [];
+}
+
+function stringifyFallbackValue(value: AnswerValue): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return JSON.stringify(value);
+  if (isObject(value)) return JSON.stringify(value);
+  return "";
+}
+
 function buildResponseItemRows(params: {
   formId: string;
   responseId: string;
@@ -235,10 +360,18 @@ function buildResponseItemRows(params: {
     const sortOrder = String(question.sort_order ?? "");
 
     if (questionType === "checkbox") {
-      const selectedIds = Array.isArray(answer.value) ? answer.value : [];
+      const selectedValues = extractCheckboxValues(answer.value);
 
-      for (const selectedId of selectedIds) {
-        const selectedOption = questionOptions.find((opt) => opt.id === selectedId);
+      for (const selected of selectedValues) {
+        const selectedOption = questionOptions.find(
+          (opt) => opt.id === selected.optionId
+        );
+
+        const answerText =
+          selected.answerText ||
+          buildChoiceAnswerText({
+            optionLabel: selectedOption?.label
+          });
 
         responseItemRows.push([
           uuid(),
@@ -248,9 +381,9 @@ function buildResponseItemRows(params: {
           question.id,
           question.label ?? "",
           questionType,
-          selectedOption?.id ?? "",
+          selectedOption?.id ?? selected.optionId ?? "",
           selectedOption?.label ?? "",
-          "",
+          answerText,
           "",
           "",
           sortOrder
@@ -261,8 +394,16 @@ function buildResponseItemRows(params: {
     }
 
     if (questionType === "multipleChoice") {
-      const selectedId = typeof answer.value === "string" ? answer.value : "";
-      const selectedOption = questionOptions.find((opt) => opt.id === selectedId);
+      const selected = extractMultipleChoiceValue(answer.value);
+      const selectedOption = questionOptions.find(
+        (opt) => opt.id === selected.optionId
+      );
+
+      const answerText =
+        selected.answerText ||
+        buildChoiceAnswerText({
+          optionLabel: selectedOption?.label
+        });
 
       responseItemRows.push([
         uuid(),
@@ -272,9 +413,9 @@ function buildResponseItemRows(params: {
         question.id,
         question.label ?? "",
         questionType,
-        selectedOption?.id ?? "",
+        selectedOption?.id ?? selected.optionId ?? "",
         selectedOption?.label ?? "",
-        "",
+        answerText,
         "",
         "",
         sortOrder
@@ -327,7 +468,7 @@ function buildResponseItemRows(params: {
       continue;
     }
 
-    const textValue = typeof answer.value === "string" ? answer.value : "";
+    const textValue = stringifyFallbackValue(answer.value);
 
     responseItemRows.push([
       uuid(),

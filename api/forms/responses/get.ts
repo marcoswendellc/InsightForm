@@ -40,7 +40,21 @@ const HEADERS = {
   ]
 } as const;
 
-type AnswersMap = Record<string, string | string[]>;
+type SizeValue = {
+  width?: string;
+  height?: string;
+};
+
+type ChoiceWithSizeValue = {
+  optionId?: string;
+  text?: string;
+  size?: SizeValue;
+};
+
+type AnswersMap = Record<
+  string,
+  string | string[] | ChoiceWithSizeValue | ChoiceWithSizeValue[]
+>;
 
 function assertEnv() {
   if (!SHEET_ID) throw new Error("Missing GOOGLE_SHEET_ID");
@@ -92,6 +106,45 @@ function parseNumber(value: string) {
   return Number.isFinite(n) ? n : 0;
 }
 
+function normalizeString(value: unknown): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function extractTextWithoutSize(text: string): string {
+  const normalized = normalizeString(text);
+  if (!normalized) return "";
+
+  const cleaned = normalized
+    .replace(/\s*\|\s*Tamanho:\s*[\d.,]+\s*x\s*[\d.,]+\s*$/i, "")
+    .replace(/^Tamanho:\s*[\d.,]+\s*x\s*[\d.,]+\s*$/i, "")
+    .trim();
+
+  return cleaned;
+}
+
+function parseSizeFromText(text: string): SizeValue | undefined {
+  const normalized = normalizeString(text);
+  if (!normalized) return undefined;
+
+  const match = normalized.match(/Tamanho:\s*([\d.,]+)\s*x\s*([\d.,]+)/i);
+  if (match) {
+    return {
+      width: match[1],
+      height: match[2]
+    };
+  }
+
+  const directMatch = normalized.match(/^([\d.,]+)\s*x\s*([\d.,]+)$/i);
+  if (directMatch) {
+    return {
+      width: directMatch[1],
+      height: directMatch[2]
+    };
+  }
+
+  return undefined;
+}
+
 function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
   const sortedItems = [...items].sort(
     (a, b) => parseNumber(a.sort_order) - parseNumber(b.sort_order)
@@ -105,21 +158,52 @@ function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
 
     if (!questionId) continue;
 
+    const parsedSize = parseSizeFromText(item.answer_text);
+    const cleanedText = extractTextWithoutSize(item.answer_text);
+    const optionLabel = normalizeString(item.option_label);
+    const textWithoutOptionLabel =
+      cleanedText && optionLabel && cleanedText === optionLabel
+        ? ""
+        : cleanedText.startsWith(`${optionLabel} | `)
+          ? cleanedText.slice(`${optionLabel} | `.length).trim()
+          : cleanedText;
+
     if (questionType === "checkbox") {
       const currentValue = answers[questionId];
-      const currentList = Array.isArray(currentValue) ? currentValue : [];
+      const currentList = Array.isArray(currentValue)
+        ? (currentValue as ChoiceWithSizeValue[])
+        : [];
 
-      if (item.option_id) {
-        answers[questionId] = [...currentList, item.option_id];
-      } else if (!answers[questionId]) {
-        answers[questionId] = [];
+      const checkboxItem: ChoiceWithSizeValue = {
+        optionId: item.option_id || ""
+      };
+
+      if (parsedSize) {
+        checkboxItem.size = parsedSize;
       }
 
+      if (textWithoutOptionLabel) {
+        checkboxItem.text = textWithoutOptionLabel;
+      }
+
+      answers[questionId] = [...currentList, checkboxItem];
       continue;
     }
 
     if (questionType === "multipleChoice") {
-      answers[questionId] = item.option_id || "";
+      const multipleChoiceValue: ChoiceWithSizeValue = {
+        optionId: item.option_id || ""
+      };
+
+      if (parsedSize) {
+        multipleChoiceValue.size = parsedSize;
+      }
+
+      if (textWithoutOptionLabel) {
+        multipleChoiceValue.text = textWithoutOptionLabel;
+      }
+
+      answers[questionId] = multipleChoiceValue;
       continue;
     }
 
