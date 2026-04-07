@@ -8,7 +8,7 @@ export type GoTo =
   | { kind: "section"; sectionId: string }
   | { kind: "submit" };
 
-export type SizeUnit = "cm" | "m";
+export type SizeUnit = "cm" | "m" | "mm";
 
 export type SizeValue = {
   width?: string;
@@ -48,28 +48,25 @@ export type FormDefinition = {
   sections: Section[];
 };
 
+export type ChoiceWithSizeValue = {
+  optionId?: string;
+  text?: string;
+  size?: SizeValue;
+};
+
 /** Respostas com tamanho para múltipla escolha */
-export type MultipleChoiceAnswer =
-  | string
-  | {
-      optionId: string;
-      size?: SizeValue;
-    };
+export type MultipleChoiceAnswer = string | ChoiceWithSizeValue;
 
 /** Respostas com tamanho para checkbox */
-export type CheckboxAnswer =
-  | string[]
-  | {
-      selectedOptionIds: string[];
-      sizes?: Record<string, SizeValue>;
-    };
+export type CheckboxAnswer = string[] | ChoiceWithSizeValue[];
 
 /** Respostas do usuário por pergunta */
 export type FormAnswerValue =
   | string
   | string[]
   | MultipleChoiceAnswer
-  | CheckboxAnswer;
+  | CheckboxAnswer
+  | undefined;
 
 export type FormAnswers = Record<string, FormAnswerValue>;
 

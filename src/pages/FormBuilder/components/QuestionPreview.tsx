@@ -86,10 +86,6 @@ function normalizeDimensionOnBlur(raw: string): string {
   return `${integerPart},${decimalPart}`;
 }
 
-function isFilledDimension(value?: string): boolean {
-  return normalizeString(value).trim().length > 0;
-}
-
 function getChoiceOptionId(value: QuestionAnswerValue): string {
   if (typeof value === "string") return value;
   if (isChoiceWithSizeValue(value)) return normalizeString(value.optionId);

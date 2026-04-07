@@ -1,5 +1,5 @@
-import type { Question, Section, FormAnswerValue } from "../types";
-import QuestionPreview from "./QuestionPreview";
+import type { Question, Section } from "../types";
+import QuestionPreview, { type QuestionAnswerValue } from "./QuestionPreview";
 import type { AnswersMap, ErrorsMap } from "./formFlow";
 import {
   PreviewSectionShell,
@@ -14,7 +14,7 @@ type Props = {
   index: number;
   answers: AnswersMap;
   errors: ErrorsMap;
-  onAnswerChange: (question: Question, value: FormAnswerValue) => void;
+  onAnswerChange: (question: Question, value: QuestionAnswerValue) => void;
 };
 
 export default function SectionPreview({

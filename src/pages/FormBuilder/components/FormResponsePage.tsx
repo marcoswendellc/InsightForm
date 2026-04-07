@@ -5,6 +5,7 @@ import { apiUrl } from "../../../api";
 import { useAuth } from "../../../auth/AuthContext";
 import type { FormDefinition, Question, FormAnswerValue } from "../types";
 import SectionPreview from "./SectionPreview";
+import type { QuestionAnswerValue } from "./QuestionPreview";
 import {
   type AnswersMap,
   type ErrorsMap,
@@ -20,9 +21,7 @@ type Props = {
 type ExistingResponsePayload = {
   id: string;
   form_id: string;
-  answers?:
-    | AnswersMap
-    | Array<{ questionId: string; value: FormAnswerValue }>;
+  answers?: AnswersMap | Array<{ questionId: string; value: FormAnswerValue }>;
 };
 
 function parseResponseAnswers(
@@ -33,7 +32,7 @@ function parseResponseAnswers(
   if (Array.isArray(input)) {
     return input.reduce<AnswersMap>((acc, item) => {
       if (!item?.questionId) return acc;
-      acc[item.questionId] = item.value ?? "";
+      acc[item.questionId] = item.value;
       return acc;
     }, {});
   }
@@ -100,7 +99,6 @@ export default function FormResponsePage({ form }: Props) {
   const currentFormId = form.id?.trim() || "";
   const section = form.sections[currentSectionIndex];
   const canSubmitForm = Boolean(currentFormId);
-
   const effectiveResponseId = savedResponseId || responseId;
 
   const isLast = useMemo(() => {
@@ -181,10 +179,13 @@ export default function FormResponsePage({ form }: Props) {
     };
   }, [currentFormId, isEditResponse, responseId, authHeader]);
 
-  const handleAnswerChange = (question: Question, value: FormAnswerValue) => {
+  const handleAnswerChange = (
+    question: Question,
+    value: QuestionAnswerValue
+  ) => {
     setAnswers((prev) => ({
       ...prev,
-      [question.id]: value
+      [question.id]: value as FormAnswerValue
     }));
 
     setErrors((prev) => {
@@ -288,6 +289,7 @@ export default function FormResponsePage({ form }: Props) {
       } finally {
         setIsSubmitting(false);
       }
+
       return;
     }
 

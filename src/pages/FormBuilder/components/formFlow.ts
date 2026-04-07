@@ -3,9 +3,8 @@ import type {
   GoTo,
   Question,
   FormAnswerValue,
-  MultipleChoiceAnswer,
-  CheckboxAnswer,
-  SizeValue
+  SizeValue,
+  ChoiceWithSizeValue
 } from "../types";
 
 export type AnswersMap = Record<string, FormAnswerValue>;
@@ -28,37 +27,29 @@ function isBlankString(value: unknown): value is string {
   return typeof value === "string" && value.trim() === "";
 }
 
-function isMultipleChoiceAnswerObject(
-  value: FormAnswerValue | undefined
-): value is Exclude<MultipleChoiceAnswer, string> {
-  return !!value && typeof value === "object" && !Array.isArray(value) && "optionId" in value;
-}
-
-function isCheckboxAnswerObject(
-  value: FormAnswerValue | undefined
-): value is Exclude<CheckboxAnswer, string[]> {
+function isChoiceWithSizeValue(value: unknown): value is ChoiceWithSizeValue {
   return (
     !!value &&
     typeof value === "object" &&
     !Array.isArray(value) &&
-    "selectedOptionIds" in value
+    "optionId" in value
+  );
+}
+
+function isChoiceWithSizeArray(value: unknown): value is ChoiceWithSizeValue[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item) => isChoiceWithSizeValue(item))
   );
 }
 
 function hasFilledSize(size?: SizeValue) {
-  return !!size?.height?.trim() && !!size?.width?.trim() && !!size?.unit?.trim();
+  return !!size?.width?.trim() && !!size?.height?.trim() && !!size?.unit?.trim();
 }
 
 function isEmptyCheckboxAnswer(value: FormAnswerValue | undefined) {
-  if (Array.isArray(value)) {
-    return value.length === 0;
-  }
-
-  if (isCheckboxAnswerObject(value)) {
-    return !Array.isArray(value.selectedOptionIds) || value.selectedOptionIds.length === 0;
-  }
-
-  return true;
+  if (!Array.isArray(value)) return true;
+  return value.length === 0;
 }
 
 function isEmptyTextLikeAnswer(value: FormAnswerValue | undefined) {
@@ -73,13 +64,9 @@ function isMissingRequiredDateAnswer(
     return true;
   }
 
-  const normalizedValue = value.trim();
-
-  if (question.includeTime === true) {
-    return !isValidDateTime(normalizedValue);
-  }
-
-  return !isValidDateOnly(normalizedValue);
+  return question.includeTime
+    ? !isValidDateTime(value)
+    : !isValidDateOnly(value);
 }
 
 function isMissingRequiredMultipleChoiceAnswer(
@@ -90,7 +77,7 @@ function isMissingRequiredMultipleChoiceAnswer(
     return typeof value !== "string" || value.trim() === "";
   }
 
-  if (!isMultipleChoiceAnswerObject(value)) {
+  if (!isChoiceWithSizeValue(value)) {
     return true;
   }
 
@@ -101,21 +88,22 @@ function isMissingRequiredMultipleChoiceAnswer(
   return !hasFilledSize(value.size);
 }
 
-function isMissingRequiredCheckboxSizeAnswer(value: FormAnswerValue | undefined) {
-  if (!isCheckboxAnswerObject(value)) {
+function isMissingRequiredCheckboxSizeAnswer(
+  value: FormAnswerValue | undefined
+) {
+  if (!isChoiceWithSizeArray(value)) {
     return true;
   }
 
-  const selectedIds = value.selectedOptionIds ?? [];
-  if (selectedIds.length === 0) {
+  if (value.length === 0) {
     return true;
   }
 
-  return selectedIds.some((optionId) => !hasFilledSize(value.sizes?.[optionId]));
+  return value.some((item) => !hasFilledSize(item.size));
 }
 
 function getRequiredErrorMessage(question: Question) {
-  if (question.type === "date" && question.includeTime === true) {
+  if (question.type === "date" && question.includeTime) {
     return "Preencha a data e a hora.";
   }
 
@@ -130,13 +118,15 @@ function getRequiredErrorMessage(question: Question) {
   return "Esta pergunta é obrigatória.";
 }
 
-function getSelectedMultipleChoiceOptionId(value: FormAnswerValue | undefined) {
+function getSelectedMultipleChoiceOptionId(
+  value: FormAnswerValue | undefined
+) {
   if (typeof value === "string") {
     return value;
   }
 
-  if (isMultipleChoiceAnswerObject(value)) {
-    return value.optionId;
+  if (isChoiceWithSizeValue(value)) {
+    return value.optionId ?? "";
   }
 
   return "";
@@ -203,11 +193,9 @@ export function isEmptyAnswer(
   value: FormAnswerValue | undefined
 ) {
   if (question.type === "checkbox") {
-    if (question.sizeEnabled) {
-      return isMissingRequiredCheckboxSizeAnswer(value);
-    }
-
-    return isEmptyCheckboxAnswer(value);
+    return question.sizeEnabled
+      ? isMissingRequiredCheckboxSizeAnswer(value)
+      : isEmptyCheckboxAnswer(value);
   }
 
   if (question.type === "multipleChoice") {
@@ -231,9 +219,8 @@ export function validateSection(
     if (!question.required) continue;
 
     const value = answers[question.id];
-    const hasEmptyAnswer = isEmptyAnswer(question, value);
 
-    if (hasEmptyAnswer) {
+    if (isEmptyAnswer(question, value)) {
       nextErrors[question.id] = getRequiredErrorMessage(question);
     }
   }
@@ -254,12 +241,8 @@ export function buildSubmitAnswers(answers: AnswersMap): SubmitAnswer[] {
         return !isBlankString(value);
       }
 
-      if (isMultipleChoiceAnswerObject(value)) {
+      if (isChoiceWithSizeValue(value)) {
         return !!value.optionId?.trim();
-      }
-
-      if (isCheckboxAnswerObject(value)) {
-        return Array.isArray(value.selectedOptionIds) && value.selectedOptionIds.length > 0;
       }
 
       return false;

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { FormDefinition, Question, FormAnswerValue } from "../types";
 import SectionPreview from "./SectionPreview";
+import type { QuestionAnswerValue } from "./QuestionPreview";
 import {
   type AnswersMap,
   type ErrorsMap,
@@ -32,10 +33,13 @@ export default function FormPreview({ form }: Props) {
     return null;
   }
 
-  const handleAnswerChange = (question: Question, value: FormAnswerValue) => {
+  const handleAnswerChange = (
+    question: Question,
+    value: QuestionAnswerValue
+  ) => {
     setAnswers((prev) => ({
       ...prev,
-      [question.id]: value
+      [question.id]: value as FormAnswerValue
     }));
 
     setErrors((prev) => {
