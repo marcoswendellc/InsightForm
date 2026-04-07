@@ -29,10 +29,16 @@ export const PreviewSectionDescription = styled.p`
 
 export const PreviewQuestionsBlock = styled.div`
   margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 `;
 
 export const PreviewQuestionShell = styled.div`
-  padding: 18px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 0;
 
   &[data-error="true"] {
     border-left: 4px solid #d93025;
@@ -45,11 +51,10 @@ export const PreviewQuestionShell = styled.div`
 `;
 
 export const PreviewQuestionLabel = styled.div`
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   line-height: 1.45;
   color: #202124;
-  margin-bottom: 14px;
 `;
 
 export const RequiredMark = styled.span`
@@ -138,12 +143,14 @@ export const PreviewOtherInput = styled.input`
     color: #5f6368;
   }
 `;
+
 export const PreviewErrorText = styled.div`
   margin-top: 10px;
   font-size: 12px;
   font-weight: 500;
   color: #d93025;
 `;
+
 export const PreviewDateTimeRow = styled.div`
   display: flex;
   gap: 16px;
@@ -155,7 +162,6 @@ export const PreviewDateTimeField = styled.div`
   display: flex;
   flex-direction: column;
   gap: 6px;
-
   flex: 1 1 220px;
   min-width: 160px;
 `;
@@ -164,4 +170,62 @@ export const PreviewDateTimeLabel = styled.span`
   font-size: 12px;
   font-weight: 600;
   color: #5f6368;
+`;
+
+export const PreviewSizeBlock = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+`;
+
+export const PreviewSizeHint = styled.div`
+  font-size: 12px;
+  color: #6b7280;
+`;
+
+export const PreviewSizeFieldLabel = styled.span`
+  font-size: 12px;
+  font-weight: 600;
+  color: #5f6368;
+`;
+
+export const PreviewSizeInput = styled.input`
+  width: 100%;
+  max-width: 180px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 14px;
+  color: #202124;
+  outline: none;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: #ed1c24;
+  }
+
+  &::placeholder {
+    color: #5f6368;
+  }
+`;
+
+export const PreviewSizeSelect = styled.select`
+  width: 100%;
+  max-width: 120px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 14px;
+  color: #202124;
+  outline: none;
+  box-sizing: border-box;
+
+  &:focus {
+    border-color: #ed1c24;
+  }
 `;
