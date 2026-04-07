@@ -1,6 +1,5 @@
 import styled from "styled-components";
 
-
 export const PreviewSectionShell = styled.section`
   background: #ffffff;
   border-radius: 12px;
@@ -28,14 +27,12 @@ export const PreviewSectionDescription = styled.p`
   color: #5f6368;
 `;
 
-
 export const PreviewQuestionsBlock = styled.div`
   margin-top: 24px;
   display: flex;
   flex-direction: column;
   gap: 28px;
 `;
-
 
 export const PreviewQuestionShell = styled.div`
   display: flex;
@@ -65,7 +62,6 @@ export const RequiredMark = styled.span`
   margin-left: 4px;
 `;
 
-
 export const PreviewTextInput = styled.input`
   width: 100%;
   border: none;
@@ -91,7 +87,6 @@ export const PreviewTextInput = styled.input`
 
 export const PreviewDateInput = styled(PreviewTextInput)``;
 
-
 export const PreviewOptionsList = styled.div`
   display: grid;
   gap: 12px;
@@ -105,6 +100,7 @@ export const PreviewOptionCard = styled.div<{ $checked?: boolean }>`
   border-radius: 16px;
   background: ${({ $checked }) => ($checked ? "#fffafa" : "#fff")};
   transition: all 0.2s ease;
+  align-items: flex-start;
 `;
 
 export const PreviewOptionRow = styled.label`
@@ -142,31 +138,34 @@ export const PreviewOtherInput = styled.input`
 
 export const PreviewSizeBlock = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 4px;
+  padding-left: 28px;
 `;
 
 export const PreviewSizeField = styled.div`
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 8px;
 `;
 
 export const PreviewSizeFieldLabel = styled.span`
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
   color: #5f6368;
+  min-width: 60px;
 `;
 
 export const PreviewSizeInput = styled.input`
-  width: 180px;
-  height: 40px;
+  width: 160px;
+  height: 44px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #ffffff;
-  font-size: 14px;
+  font-size: 15px;
   color: #202124;
   outline: none;
 
@@ -176,13 +175,13 @@ export const PreviewSizeInput = styled.input`
 `;
 
 export const PreviewSizeSelect = styled.select`
-  width: 120px;
-  height: 40px;
+  width: 110px;
+  height: 44px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
-  border-radius: 10px;
+  border-radius: 12px;
   background: #ffffff;
-  font-size: 14px;
+  font-size: 15px;
   color: #202124;
   outline: none;
 
@@ -192,6 +191,9 @@ export const PreviewSizeSelect = styled.select`
 `;
 
 export const PreviewSizeHint = styled.div`
+  width: 100%;
+  padding-left: 28px;
+  margin-top: -2px;
   font-size: 12px;
   color: #6b7280;
 `;
