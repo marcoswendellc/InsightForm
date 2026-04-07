@@ -36,7 +36,8 @@ const HEADERS = {
     "answer_text",
     "answer_date",
     "answer_boolean",
-    "sort_order"
+    "sort_order",
+    "answer_unit"
   ]
 } as const;
 
@@ -123,33 +124,23 @@ function extractTextWithoutSize(text: string): string {
   return cleaned;
 }
 
-function parseSizeFromText(text: string): SizeValue | undefined {
+function parseSizeFromText(text: string): Omit<SizeValue, "unit"> | undefined {
   const normalized = normalizeString(text);
   if (!normalized) return undefined;
 
-  // pega: 1,20 x 0,80 cm
-  const match = normalized.match(
-    /Tamanho:\s*([\d.,]+)\s*x\s*([\d.,]+)\s*(cm|m|mm)?/i
-  );
-
+  const match = normalized.match(/Tamanho:\s*([\d.,]+)\s*x\s*([\d.,]+)/i);
   if (match) {
     return {
       width: match[1],
-      height: match[2],
-      unit: match[3] || ""
+      height: match[2]
     };
   }
 
-  // fallback simples
-  const directMatch = normalized.match(
-    /^([\d.,]+)\s*x\s*([\d.,]+)\s*(cm|m|mm)?$/i
-  );
-
+  const directMatch = normalized.match(/^([\d.,]+)\s*x\s*([\d.,]+)$/i);
   if (directMatch) {
     return {
       width: directMatch[1],
-      height: directMatch[2],
-      unit: directMatch[3] || ""
+      height: directMatch[2]
     };
   }
 
@@ -170,6 +161,7 @@ function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
     if (!questionId) continue;
 
     const parsedSize = parseSizeFromText(item.answer_text);
+    const parsedUnit = normalizeString(item.answer_unit);
     const cleanedText = extractTextWithoutSize(item.answer_text);
     const optionLabel = normalizeString(item.option_label);
     const textWithoutOptionLabel =
@@ -209,7 +201,11 @@ function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
       };
 
       if (parsedSize) {
-        checkboxItem.size = parsedSize;
+        checkboxItem.size = {
+          width: parsedSize.width,
+          height: parsedSize.height,
+          unit: parsedUnit
+        };
       }
 
       if (textWithoutOptionLabel) {
@@ -223,7 +219,7 @@ function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
           ...currentObjects,
           ...currentStringIds.map((id) => ({
             optionId: id,
-            size: { width: "", height: "", unit: "" }
+            size: { width: "", height: "", unit: parsedUnit }
           }))
         ];
 
@@ -248,7 +244,11 @@ function buildAnswersMap(items: Record<string, string>[]): AnswersMap {
       };
 
       if (parsedSize) {
-        multipleChoiceValue.size = parsedSize;
+        multipleChoiceValue.size = {
+          width: parsedSize.width,
+          height: parsedSize.height,
+          unit: parsedUnit
+        };
       }
 
       if (textWithoutOptionLabel) {

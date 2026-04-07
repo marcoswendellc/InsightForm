@@ -7,6 +7,7 @@ const uuid = () => crypto.randomUUID();
 type SizeValue = {
   width?: string;
   height?: string;
+  unit?: string;
 };
 
 type ChoiceWithSizeValue = {
@@ -39,6 +40,12 @@ type SubmitRequestBody = {
 };
 
 type SheetRowObject = Record<string, string>;
+
+type ExtractedChoiceValue = {
+  optionId: string;
+  answerText: string;
+  answerUnit: string;
+};
 
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 const SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
@@ -76,7 +83,8 @@ const HEADERS = {
     "answer_text",
     "answer_date",
     "answer_boolean",
-    "sort_order"
+    "sort_order",
+    "answer_unit"
   ],
   questions: [
     "id",
@@ -241,17 +249,42 @@ function normalizeString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function formatSize(size?: SizeValue): string {
-  if (!size) return "";
+function normalizeSizeValue(size?: SizeValue): SizeValue | undefined {
+  if (!size) return undefined;
 
   const width = normalizeString(size.width);
   const height = normalizeString(size.height);
+  const unit = normalizeString(size.unit);
 
-  if (width && height) return `${width}x${height}`;
-  if (width) return width;
-  if (height) return height;
+  if (!width && !height && !unit) return undefined;
+
+  return {
+    width,
+    height,
+    unit
+  };
+}
+
+function formatSize(size?: SizeValue): string {
+  const normalized = normalizeSizeValue(size);
+  if (!normalized) return "";
+
+  const width = normalizeString(normalized.width);
+  const height = normalizeString(normalized.height);
+  const unit = normalizeString(normalized.unit);
+
+  if (width && height) {
+    return `${width}x${height}${unit ? ` ${unit}` : ""}`;
+  }
+
+  if (width) return `${width}${unit ? ` ${unit}` : ""}`;
+  if (height) return `${height}${unit ? ` ${unit}` : ""}`;
 
   return "";
+}
+
+function extractUnit(size?: SizeValue): string {
+  return normalizeString(size?.unit);
 }
 
 function buildChoiceAnswerText(params: {
@@ -272,14 +305,12 @@ function buildChoiceAnswerText(params: {
   return parts.join(" | ");
 }
 
-function extractMultipleChoiceValue(value: AnswerValue): {
-  optionId: string;
-  answerText: string;
-} {
+function extractMultipleChoiceValue(value: AnswerValue): ExtractedChoiceValue {
   if (typeof value === "string") {
     return {
       optionId: value,
-      answerText: ""
+      answerText: "",
+      answerUnit: ""
     };
   }
 
@@ -289,26 +320,26 @@ function extractMultipleChoiceValue(value: AnswerValue): {
       answerText: buildChoiceAnswerText({
         extraText: value.text,
         size: value.size
-      })
+      }),
+      answerUnit: extractUnit(value.size)
     };
   }
 
   return {
     optionId: "",
-    answerText: ""
+    answerText: "",
+    answerUnit: ""
   };
 }
 
-function extractCheckboxValues(value: AnswerValue): Array<{
-  optionId: string;
-  answerText: string;
-}> {
+function extractCheckboxValues(value: AnswerValue): ExtractedChoiceValue[] {
   if (Array.isArray(value)) {
     return value.map((item) => {
       if (typeof item === "string") {
         return {
           optionId: item,
-          answerText: ""
+          answerText: "",
+          answerUnit: ""
         };
       }
 
@@ -318,13 +349,15 @@ function extractCheckboxValues(value: AnswerValue): Array<{
           answerText: buildChoiceAnswerText({
             extraText: item.text,
             size: item.size
-          })
+          }),
+          answerUnit: extractUnit(item.size)
         };
       }
 
       return {
         optionId: "",
-        answerText: ""
+        answerText: "",
+        answerUnit: ""
       };
     });
   }
@@ -386,7 +419,8 @@ function buildResponseItemRows(params: {
           answerText,
           "",
           "",
-          sortOrder
+          sortOrder,
+          selected.answerUnit
         ]);
       }
 
@@ -418,7 +452,8 @@ function buildResponseItemRows(params: {
         answerText,
         "",
         "",
-        sortOrder
+        sortOrder,
+        selected.answerUnit
       ]);
 
       continue;
@@ -440,7 +475,8 @@ function buildResponseItemRows(params: {
         "",
         dateValue,
         "",
-        sortOrder
+        sortOrder,
+        ""
       ]);
 
       continue;
@@ -462,7 +498,8 @@ function buildResponseItemRows(params: {
         "",
         "",
         booleanValue,
-        sortOrder
+        sortOrder,
+        ""
       ]);
 
       continue;
@@ -483,7 +520,8 @@ function buildResponseItemRows(params: {
       textValue,
       "",
       "",
-      sortOrder
+      sortOrder,
+      ""
     ]);
   }
 
