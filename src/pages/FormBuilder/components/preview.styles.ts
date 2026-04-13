@@ -139,10 +139,18 @@ export const PreviewOtherInput = styled.input`
 export const PreviewSizeBlock = styled.div`
   display: flex;
   align-items: center;
+  flex-direction: column;
   flex-wrap: wrap;
   gap: 16px;
   margin-top: 4px;
   padding-left: 28px;
+`;
+
+export const PreviewSizeRow = styled.div`
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
 `;
 
 export const PreviewSizeField = styled.div`
