@@ -560,7 +560,14 @@ export default function QuestionCard({
 
       {renderQuestionTitle()}
 
-      <div style={{ marginTop: isBuilder ? 10 : 0 }}>
+      <div 
+        style={{ 
+          marginTop: isBuilder ? 10 : 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: 10
+        }}
+      >
         {renderAnswerArea()}
       </div>
 
