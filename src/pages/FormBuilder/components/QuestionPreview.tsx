@@ -651,7 +651,7 @@ export default function QuestionPreview({
                     </PreviewSizeField>
 
                     <PreviewSizeField>
-                      <PreviewSizeFieldLabel>Altura </PreviewSizeFieldLabel>
+                      <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
                         type="text"
                         inputMode="decimal"
