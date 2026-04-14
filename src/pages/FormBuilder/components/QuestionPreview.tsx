@@ -768,22 +768,21 @@ export default function QuestionPreview({
                     <PreviewSizeField>
                       <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max="9999.99"
+                        type="text"
+                        inputMode="decimal"
                         value={optionSize.width}
                         onChange={(e) => {
                           let value = e.target.value;
-
-                          // bloqueia valores fora do padrão
-                          if (/^\d{0,4}(\.\d{0,2})?$/.test(value) || value === "") {
+                          value = value.replace(/[^0-9,]/g, "");
+                          const parts = value.split(",");
+                          if (parts.length > 2) return;
+                          if (/^\d{0,4}(,\d{0,2})?$/.test(value) || value === "") {
                             updateCheckboxSize(option.id, "width", value);
                           }
                         }}
                         onBlur={() => blurCheckboxSize(option.id, "width")}
                         disabled={disabled}
-                        placeholder="Ex.: 1.20"
+                        placeholder="Ex.: 1,20"
                       />
                     </PreviewSizeField>
                     
