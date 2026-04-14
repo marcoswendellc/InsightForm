@@ -37,7 +37,7 @@ export const PreviewQuestionsBlock = styled.div`
 export const PreviewQuestionShell = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   padding: 12px 0;
 
   &[data-error="true"] {
@@ -55,6 +55,7 @@ export const PreviewQuestionLabel = styled.div`
   font-weight: 700;
   line-height: 1.45;
   color: #202124;
+  margin-bottom: 6px;
 `;
 
 export const RequiredMark = styled.span`
@@ -138,10 +139,10 @@ export const PreviewOtherInput = styled.input`
 
 export const PreviewSizeBlock = styled.div`
   display: flex;
-  align-items: center;
-  flex-direction: column;
+  align-items: flex-end;
+  flex-direction: row;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 18px;
   margin-top: 4px;
   padding-left: 28px;
 `;
