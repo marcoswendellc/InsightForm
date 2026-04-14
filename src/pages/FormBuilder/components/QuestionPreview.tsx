@@ -47,7 +47,7 @@ type Props = {
   onChange: (value: QuestionAnswerValue) => void;
 };
 
-const SIZE_UNITS: SizeUnit[] = ["cm", "m", "mm"];
+const SIZE_UNITS: SizeUnit[] = ["centímetro", "metro"];
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -63,7 +63,7 @@ function normalizeString(value: unknown): string {
 
 function normalizeUnit(value: unknown): SizeUnit {
   const unit = normalizeString(value) as SizeUnit;
-  return SIZE_UNITS.includes(unit) ? unit : "cm";
+  return SIZE_UNITS.includes(unit) ? unit : "centímetro";
 }
 
 function hasSizeEnabled(question: Question) {
@@ -126,7 +126,7 @@ function getChoiceSize(value: QuestionAnswerValue): SizeValue {
   return {
     width: "",
     height: "",
-    unit: "cm"
+    unit: "centímetro"
   };
 }
 
@@ -140,7 +140,7 @@ function getCheckboxObjects(value: QuestionAnswerValue): ChoiceWithSizeValue[] {
         size: {
           width: "",
           height: "",
-          unit: "cm"
+          unit: "centímetro"
         }
       };
     }
@@ -163,7 +163,7 @@ function getCheckboxObjects(value: QuestionAnswerValue): ChoiceWithSizeValue[] {
       size: {
         width: "",
         height: "",
-        unit: "cm"
+        unit: "centímetro"
       }
     };
   });
@@ -200,12 +200,12 @@ function upsertCheckboxObject(
     ? updater({
         optionId,
         text: "",
-        size: { width: "", height: "", unit: "cm" }
+        size: { width: "", height: "", unit: "centímetro" }
       })
     : {
         optionId,
         text: "",
-        size: { width: "", height: "", unit: "cm" }
+        size: { width: "", height: "", unit: "centímetro" }
       };
 
   items.push(created);
@@ -332,7 +332,7 @@ export default function QuestionPreview({
         : {
             width: "",
             height: "",
-            unit: "cm" as SizeUnit
+            unit: "centímetro" as SizeUnit
           };
 
     const previousText =
