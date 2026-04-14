@@ -753,7 +753,7 @@ export default function QuestionPreview({
                     <PreviewSizeField>
                       <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
-                        type="text"
+                        type="number"
                         inputMode="decimal"
                         value={optionSize.height}
                         onChange={(e) =>
@@ -768,9 +768,10 @@ export default function QuestionPreview({
                     <PreviewSizeField>
                       <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
-                        type="text"
-                        inputMode="decimal"
-                        maxLength={7}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="9999.99"
                         value={optionSize.width}
                         onChange={(e) =>
                           updateCheckboxSize(option.id, "width", e.target.value)
