@@ -12,12 +12,13 @@ import {
   PreviewErrorText,
   PreviewSizeBlock,
   PreviewSizeHint,
+  PreviewSizeField,
   PreviewSizeFieldLabel,
   PreviewSizeInput,
   PreviewSizeSelect
 } from "./preview.styles";
 
-type SizeUnit = "cm" | "m" | "mm";
+type SizeUnit = "centímetro" | "metro";
 
 type SizeValue = {
   width?: string;
@@ -634,7 +635,7 @@ export default function QuestionPreview({
 
                 {checked && sizeEnabled ? (
                   <PreviewSizeBlock>
-                    <div>
+                    <PreviewSizeField>
                       <PreviewSizeFieldLabel>Largura </PreviewSizeFieldLabel>
                       <PreviewSizeInput
                         type="text"
@@ -647,9 +648,9 @@ export default function QuestionPreview({
                         disabled={disabled}
                         placeholder="Ex.: 1,20"
                       />
-                    </div>
+                    </PreviewSizeField>
 
-                    <div>
+                    <PreviewSizeField>
                       <PreviewSizeFieldLabel>Altura </PreviewSizeFieldLabel>
                       <PreviewSizeInput
                         type="text"
@@ -662,10 +663,10 @@ export default function QuestionPreview({
                         disabled={disabled}
                         placeholder="Ex.: 0,80"
                       />
-                    </div>
+                    </PreviewSizeField>
 
-                    <div>
-                      <PreviewSizeFieldLabel>Unidade</PreviewSizeFieldLabel>
+                    <PreviewSizeField>
+                      <PreviewSizeFieldLabel>Unidade </PreviewSizeFieldLabel>
                       <PreviewSizeSelect
                         value={normalizeUnit(selectedChoiceSize.unit)}
                         onChange={(e) =>
@@ -679,7 +680,7 @@ export default function QuestionPreview({
                           </option>
                         ))}
                       </PreviewSizeSelect>
-                    </div>
+                    </PreviewSizeField>
 
                     <PreviewSizeHint>
                       Informe as dimensões da peça. Exemplo: 1,20 × 0,80 m
@@ -716,7 +717,7 @@ export default function QuestionPreview({
               ) ?? {
                 optionId: option.id,
                 text: "",
-                size: { width: "", height: "", unit: "cm" }
+                size: { width: "", height: "", unit: "centímetro" }
               };
 
             const optionSize = {
@@ -749,7 +750,7 @@ export default function QuestionPreview({
 
                 {checked && sizeEnabled ? (
                   <PreviewSizeBlock>
-                    <div>
+                    <PreviewSizeField>
                       <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
                         type="text"
@@ -762,9 +763,9 @@ export default function QuestionPreview({
                         disabled={disabled}
                         placeholder="Ex.: 0,80"
                       />
-                    </div>
+                    </PreviewSizeField>
 
-                    <div>
+                    <PreviewSizeField>
                       <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
                         type="text"
@@ -777,9 +778,9 @@ export default function QuestionPreview({
                         disabled={disabled}
                         placeholder="Ex.: 1,20"
                       />
-                    </div>
+                    </PreviewSizeField>
                     
-                    <div>
+                    <PreviewSizeField>
                       <PreviewSizeFieldLabel>Unidade</PreviewSizeFieldLabel>
                       <PreviewSizeSelect
                         value={optionSize.unit}
@@ -794,7 +795,7 @@ export default function QuestionPreview({
                           </option>
                         ))}
                       </PreviewSizeSelect>
-                    </div>
+                    </PreviewSizeField>
 
                     <PreviewSizeHint>
                       Informe as dimensões desta peça. Exemplo: 1,20 × 0,80 m

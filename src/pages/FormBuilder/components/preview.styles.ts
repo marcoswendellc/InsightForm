@@ -161,10 +161,13 @@ export const PreviewSizeField = styled.div`
 `;
 
 export const PreviewSizeFieldLabel = styled.span`
+  display: inline-flex;
+  align-items: center;
   font-size: 14px;
   font-weight: 600;
   color: #5f6368;
-  min-width: 60px;
+  min-width: 72px;
+  margin-right: 10px;
 `;
 
 export const PreviewSizeInput = styled.input`
