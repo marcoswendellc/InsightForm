@@ -770,6 +770,7 @@ export default function QuestionPreview({
                       <PreviewSizeInput
                         type="text"
                         inputMode="decimal"
+                        maxLength={7}
                         value={optionSize.width}
                         onChange={(e) =>
                           updateCheckboxSize(option.id, "width", e.target.value)
