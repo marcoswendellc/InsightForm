@@ -157,7 +157,7 @@ export const PreviewSizeRow = styled.div`
 export const PreviewSizeField = styled.div`
   display: flex;
   align-items: center;
-  gap: 100px;
+  gap: 12px;
 `;
 
 export const PreviewSizeFieldLabel = styled.span`
