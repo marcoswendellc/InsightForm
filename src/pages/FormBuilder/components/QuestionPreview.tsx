@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { Question, Option } from "../types";
+import type { Question } from "../types";
 import {
   PreviewQuestionShell,
   PreviewQuestionLabel,
@@ -8,18 +8,14 @@ import {
   PreviewDateInput,
   PreviewOptionsList,
   PreviewOptionRow,
-  PreviewOtherInput,
   PreviewErrorText,
   PreviewSizeBlock,
+  PreviewSizeRow,
   PreviewSizeHint,
   PreviewSizeFieldLabel,
   PreviewSizeInput,
   PreviewSizeSelect
 } from "./preview.styles";
-
-/* =========================
-   TYPES
-========================= */
 
 type SizeUnit = "cm" | "m" | "mm";
 
@@ -50,117 +46,98 @@ type Props = {
   onChange: (value: QuestionAnswerValue) => void;
 };
 
-/* =========================
-   CONSTANTS
-========================= */
-
 const SIZE_UNITS: SizeUnit[] = ["cm", "m", "mm"];
 
-/* =========================
-   HELPERS
-========================= */
+/* ---------------- utils ---------------- */
 
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
-const isChoice = (value: unknown): value is ChoiceWithSizeValue =>
-  isObject(value);
+function isChoiceWithSizeValue(value: unknown): value is ChoiceWithSizeValue {
+  return isObject(value);
+}
 
-const str = (v: unknown) => (typeof v === "string" ? v : "");
+function normalizeString(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
 
-const normalizeUnit = (v: unknown): SizeUnit =>
-  SIZE_UNITS.includes(v as SizeUnit) ? (v as SizeUnit) : "cm";
+function normalizeUnit(value: unknown): SizeUnit {
+  const unit = normalizeString(value) as SizeUnit;
+  return SIZE_UNITS.includes(unit) ? unit : "cm";
+}
 
-const hasSizeEnabled = (q: Question) =>
-  ["multipleChoice", "checkbox"].includes(q.type) &&
-  Boolean((q as any).sizeEnabled);
+function hasSizeEnabled(question: Question) {
+  return (
+    (question.type === "multipleChoice" || question.type === "checkbox") &&
+    Boolean((question as any).sizeEnabled)
+  );
+}
 
-/* =========================
-   DIMENSION FORMAT
-========================= */
+/* 🔥 corrigido (template string) */
+function sanitizeDimensionInput(raw: string): string {
+  const cleaned = raw.replace(/[^\d.,]/g, "");
+  const normalized = cleaned.replace(/\./g, ",");
+  const parts = normalized.split(",");
 
-const sanitize = (raw: string) => {
-  const cleaned = raw.replace(/[^\d.,]/g, "").replace(/\./g, ",");
-  const parts = cleaned.split(",");
-  return parts.length <= 1 ? cleaned : `${parts[0]},${parts.slice(1).join("")}`;
-};
+  if (parts.length <= 1) return normalized;
 
-const normalizeBlur = (raw: string) => {
-  const s = sanitize(raw).trim();
-  if (!s) return "";
+  return `${parts[0]},${parts.slice(1).join("")}`;
+}
 
-  const [intRaw, decRaw = ""] = s.split(",");
-  const int = intRaw.replace(/^0+(?=\d)/, "") || "0";
-  const dec = decRaw.replace(/0+$/, "");
 
-  if (!s.includes(",")) return int;
-  if (!dec) return int;
+/* ---------------- helpers ---------------- */
 
-  return `${int},${dec}`;
-};
-
-/* =========================
-   VALUE PARSERS
-========================= */
-
-const getChoiceId = (v: QuestionAnswerValue) =>
-  typeof v === "string" ? v : isChoice(v) ? str(v.optionId) : "";
-
-const getChoiceText = (v: QuestionAnswerValue) =>
-  isChoice(v) ? str(v.text) : "";
-
-const getChoiceSize = (v: QuestionAnswerValue): SizeValue =>
-  isChoice(v) && isObject(v.size)
-    ? {
-        width: str(v.size.width),
-        height: str(v.size.height),
-        unit: normalizeUnit(v.size.unit)
-      }
-    : { width: "", height: "", unit: "cm" };
-
-const getCheckboxObjects = (v: QuestionAnswerValue): ChoiceWithSizeValue[] =>
-  Array.isArray(v)
-    ? v.map((item) =>
-        typeof item === "string"
-          ? { optionId: item, size: { width: "", height: "", unit: "cm" } }
-          : {
-              optionId: str(item.optionId),
-              text: str(item.text),
-              size: {
-                width: str(item.size?.width),
-                height: str(item.size?.height),
-                unit: normalizeUnit(item.size?.unit)
-              }
-            }
-      )
-    : [];
-
-const getCheckboxIds = (v: QuestionAnswerValue): string[] =>
-  Array.isArray(v)
-    ? v
-        .map((i) => (typeof i === "string" ? i : str(i.optionId)))
-        .filter(Boolean)
-    : [];
-
-/* =========================
-   VALIDATION
-========================= */
-
-const sizeError = (size?: SizeValue) => {
-  const w = str(size?.width);
-  const h = str(size?.height);
-  const u = str(size?.unit);
-
-  if (!w && !h) return "Preencha largura e altura.";
-  if (!w) return "Preencha a largura.";
-  if (!h) return "Preencha a altura.";
-  if (!u) return "Selecione a unidade.";
+function getChoiceOptionId(value: QuestionAnswerValue): string {
+  if (typeof value === "string") return value;
+  if (isChoiceWithSizeValue(value)) return normalizeString(value.optionId);
   return "";
-};
+}
 
-/* =========================
-   COMPONENT
-========================= */
+function getChoiceText(value: QuestionAnswerValue): string {
+  if (isChoiceWithSizeValue(value)) return normalizeString(value.text);
+  return "";
+}
+
+function getChoiceSize(value: QuestionAnswerValue): SizeValue {
+  if (isChoiceWithSizeValue(value) && isObject(value.size)) {
+    return {
+      width: normalizeString(value.size.width),
+      height: normalizeString(value.size.height),
+      unit: normalizeUnit(value.size.unit)
+    };
+  }
+  return { width: "", height: "", unit: "cm" };
+}
+
+function renderQuestionLabel(question: Question) {
+  return (
+    <PreviewQuestionLabel>
+      {question.label?.trim() || "Pergunta sem título"}
+      {question.required && <RequiredMark>*</RequiredMark>}
+    </PreviewQuestionLabel>
+  );
+}
+
+function sizeCardStyle(selected: boolean): React.CSSProperties {
+  return {
+    display: "grid",
+    gap: 10,
+    padding: 16,
+    border: `1px solid ${selected ? "#f3b4b4" : "#e5e7eb"}`,
+    borderRadius: 16,
+    background: selected ? "#fffafa" : "#fff"
+  };
+}
+
+function optionTextStyle(): React.CSSProperties {
+  return {
+    fontSize: 14,
+    lineHeight: 1.45
+  };
+}
+
+/* ================= COMPONENT ================= */
 
 export default function QuestionPreview({
   question,
@@ -172,200 +149,147 @@ export default function QuestionPreview({
   const optionName = useMemo(() => `preview_${question.id}`, [question.id]);
   const sizeEnabled = hasSizeEnabled(question);
 
-  const choiceId = getChoiceId(value);
-  const choiceText = getChoiceText(value);
-  const choiceSize = getChoiceSize(value);
+  const selectedId = getChoiceOptionId(value);
+  const selectedText = getChoiceText(value);
+  const selectedSize = getChoiceSize(value);
 
-  const checkboxIds = getCheckboxIds(value);
-  const checkboxObjects = getCheckboxObjects(value);
-
-  const mcError = useMemo(
-    () =>
-      question.type === "multipleChoice" && sizeEnabled && choiceId
-        ? sizeError(choiceSize)
-        : "",
-    [question.type, sizeEnabled, choiceId, choiceSize]
-  );
-
-  const checkboxErrors = useMemo(() => {
-    if (question.type !== "checkbox" || !sizeEnabled) return {};
-    return checkboxObjects.reduce<Record<string, string>>((acc, item) => {
-      const msg = sizeError(item.size);
-      if (msg && item.optionId) acc[item.optionId] = msg;
-      return acc;
-    }, {});
-  }, [question.type, sizeEnabled, checkboxObjects]);
-
-  const renderLabel = () => (
-    <PreviewQuestionLabel>
-      {question.label?.trim() || "Pergunta sem título"}
-      {question.required && <RequiredMark>*</RequiredMark>}
-    </PreviewQuestionLabel>
-  );
-
-  /* =========================
-     RENDER TYPES
-  ========================= */
+  /* ---------------- TEXT ---------------- */
 
   if (question.type === "text") {
     return (
       <PreviewQuestionShell data-error={!!error}>
-        {renderLabel()}
+        {renderQuestionLabel(question)}
+
         <PreviewTextInput
-          value={str(value)}
+          value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
           placeholder="Sua resposta"
         />
+
         {error && <PreviewErrorText>{error}</PreviewErrorText>}
       </PreviewQuestionShell>
     );
   }
+
+  /* ---------------- DATE ---------------- */
 
   if (question.type === "date") {
     return (
-      <PreviewQuestionShell data-error={!!error}>
-        {renderLabel()}
+      <PreviewQuestionShell>
+        {renderQuestionLabel(question)}
+
         <PreviewDateInput
           type={question.includeTime ? "datetime-local" : "date"}
-          value={str(value)}
+          value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
         />
-        {error && <PreviewErrorText>{error}</PreviewErrorText>}
       </PreviewQuestionShell>
     );
   }
 
+  /* ---------------- MULTIPLE ---------------- */
+
   if (question.type === "multipleChoice") {
     return (
-      <PreviewQuestionShell data-error={!!error}>
-        {renderLabel()}
+      <PreviewQuestionShell>
+        {renderQuestionLabel(question)}
 
         <PreviewOptionsList>
-          {question.options?.map((opt) => {
-            const checked = choiceId === opt.id;
+          {question.options?.map((option) => {
+            const checked = selectedId === option.id;
 
             return (
-              <div key={opt.id}>
+              <div key={option.id} style={sizeCardStyle(checked)}>
                 <PreviewOptionRow>
                   <input
                     type="radio"
                     name={optionName}
                     checked={checked}
-                    disabled={disabled}
-                    onChange={() => onChange(opt.id)}
+                    onChange={() =>
+                      onChange({
+                        optionId: option.id,
+                        text: option.isOther ? selectedText : "",
+                        size: selectedSize
+                      })
+                    }
                   />
-                  <span>{opt.label}</span>
+                  <span style={optionTextStyle()}>{option.label}</span>
                 </PreviewOptionRow>
 
                 {checked && sizeEnabled && (
                   <PreviewSizeBlock>
-                    <PreviewSizeInput
-                      placeholder="Largura"
-                      value={choiceSize.width}
-                      onChange={(e) =>
-                        onChange({
-                          optionId: opt.id,
-                          size: {
-                            ...choiceSize,
-                            width: sanitize(e.target.value)
+                    <PreviewSizeRow>
+                      <div>
+                        <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
+                        <PreviewSizeInput
+                          value={selectedSize.width}
+                          onChange={(e) =>
+                            onChange({
+                              optionId: option.id,
+                              size: {
+                                ...selectedSize,
+                                width: sanitizeDimensionInput(e.target.value)
+                              }
+                            })
                           }
-                        })
-                      }
-                      onBlur={(e) =>
-                        onChange({
-                          optionId: opt.id,
-                          size: {
-                            ...choiceSize,
-                            width: normalizeBlur(e.target.value)
-                          }
-                        })
-                      }
-                    />
+                        />
+                      </div>
 
-                    <PreviewSizeInput
-                      placeholder="Altura"
-                      value={choiceSize.height}
-                      onChange={(e) =>
-                        onChange({
-                          optionId: opt.id,
-                          size: {
-                            ...choiceSize,
-                            height: sanitize(e.target.value)
+                      <div>
+                        <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
+                        <PreviewSizeInput
+                          value={selectedSize.height}
+                          onChange={(e) =>
+                            onChange({
+                              optionId: option.id,
+                              size: {
+                                ...selectedSize,
+                                height: sanitizeDimensionInput(e.target.value)
+                              }
+                            })
                           }
-                        })
-                      }
-                      onBlur={(e) =>
-                        onChange({
-                          optionId: opt.id,
-                          size: {
-                            ...choiceSize,
-                            height: normalizeBlur(e.target.value)
+                        />
+                      </div>
+
+                      <div>
+                        <PreviewSizeFieldLabel>Unidade</PreviewSizeFieldLabel>
+                        <PreviewSizeSelect
+                          value={selectedSize.unit}
+                          onChange={(e) =>
+                            onChange({
+                              optionId: option.id,
+                              size: {
+                                ...selectedSize,
+                                unit: e.target.value
+                              }
+                            })
                           }
-                        })
-                      }
-                    />
+                        >
+                          {SIZE_UNITS.map((u) => (
+                            <option key={u}>{u}</option>
+                          ))}
+                        </PreviewSizeSelect>
+                      </div>
+                    </PreviewSizeRow>
 
-                    <PreviewSizeSelect
-                      value={choiceSize.unit}
-                      onChange={(e) =>
-                        onChange({
-                          optionId: opt.id,
-                          size: { ...choiceSize, unit: e.target.value }
-                        })
-                      }
-                    >
-                      {SIZE_UNITS.map((u) => (
-                        <option key={u}>{u}</option>
-                      ))}
-                    </PreviewSizeSelect>
-
-                    {mcError && <PreviewErrorText>{mcError}</PreviewErrorText>}
+                    <PreviewSizeHint>
+                      Informe as dimensões. Ex: 1,20 × 0,80 m
+                    </PreviewSizeHint>
                   </PreviewSizeBlock>
                 )}
               </div>
             );
           })}
         </PreviewOptionsList>
-
-        {error && <PreviewErrorText>{error}</PreviewErrorText>}
       </PreviewQuestionShell>
     );
   }
 
-  if (question.type === "checkbox") {
-    return (
-      <PreviewQuestionShell data-error={!!error}>
-        {renderLabel()}
-
-        <PreviewOptionsList>
-          {question.options?.map((opt) => {
-            const checked = checkboxIds.includes(opt.id);
-
-            return (
-              <PreviewOptionRow key={opt.id}>
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={(e) =>
-                    onChange(
-                      e.target.checked
-                        ? [...checkboxIds, opt.id]
-                        : checkboxIds.filter((i) => i !== opt.id)
-                    )
-                  }
-                />
-                <span>{opt.label}</span>
-              </PreviewOptionRow>
-            );
-          })}
-        </PreviewOptionsList>
-
-        {error && <PreviewErrorText>{error}</PreviewErrorText>}
-      </PreviewQuestionShell>
-    );
-  }
-
-  return <PreviewQuestionShell>{renderLabel()}</PreviewQuestionShell>;
+  return (
+    <PreviewQuestionShell>
+      {renderQuestionLabel(question)}
+    </PreviewQuestionShell>
+  );
 }
