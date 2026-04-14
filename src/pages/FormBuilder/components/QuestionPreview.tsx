@@ -767,7 +767,7 @@ export default function QuestionPreview({
                         }}
                         onBlur={() => blurCheckboxSize(option.id, "height")}
                         disabled={disabled}
-                        placeholder="Ex.: 0,80"
+                        placeholder="Ex.: 1,20"
                       />
                     </PreviewSizeField>
 
@@ -788,7 +788,7 @@ export default function QuestionPreview({
                         }}
                         onBlur={() => blurCheckboxSize(option.id, "width")}
                         disabled={disabled}
-                        placeholder="Ex.: 1,20"
+                        placeholder="Ex.: 0,80"
                       />
                     </PreviewSizeField>
                     
