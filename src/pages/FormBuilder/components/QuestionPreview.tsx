@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { Question } from "../types";
+import type { Question, Option } from "../types";
 import {
   PreviewQuestionShell,
   PreviewQuestionLabel,
@@ -8,9 +8,9 @@ import {
   PreviewDateInput,
   PreviewOptionsList,
   PreviewOptionRow,
+  PreviewOtherInput,
   PreviewErrorText,
   PreviewSizeBlock,
-  PreviewSizeRow,
   PreviewSizeHint,
   PreviewSizeFieldLabel,
   PreviewSizeInput,
@@ -48,7 +48,7 @@ type Props = {
 
 const SIZE_UNITS: SizeUnit[] = ["cm", "m", "mm"];
 
-/* ---------------- utils ---------------- */
+/* ================= UTILS ================= */
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -68,25 +68,38 @@ function normalizeUnit(value: unknown): SizeUnit {
 }
 
 function hasSizeEnabled(question: Question) {
-  return (
-    (question.type === "multipleChoice" || question.type === "checkbox") &&
-    Boolean((question as any).sizeEnabled)
-  );
+  return question.type === "multipleChoice" || question.type === "checkbox"
+    ? Boolean((question as Question & { sizeEnabled?: boolean }).sizeEnabled)
+    : false;
 }
 
-/* 🔥 corrigido (template string) */
 function sanitizeDimensionInput(raw: string): string {
   const cleaned = raw.replace(/[^\d.,]/g, "");
-  const normalized = cleaned.replace(/\./g, ",");
-  const parts = normalized.split(",");
+  const normalizedComma = cleaned.replace(/\./g, ",");
+  const parts = normalizedComma.split(",");
 
-  if (parts.length <= 1) return normalized;
+  if (parts.length <= 1) return normalizedComma;
 
   return `${parts[0]},${parts.slice(1).join("")}`;
 }
 
+function normalizeDimensionOnBlur(raw: string): string {
+  const sanitized = sanitizeDimensionInput(raw).trim();
+  if (!sanitized) return "";
 
-/* ---------------- helpers ---------------- */
+  const hasDecimal = sanitized.includes(",");
+  const [integerPartRaw, decimalPartRaw = ""] = sanitized.split(",");
+
+  const integerPart = integerPartRaw.replace(/^0+(?=\d)/, "") || "0";
+  const decimalPart = decimalPartRaw.replace(/0+$/, "");
+
+  if (!hasDecimal) return integerPart;
+  if (!decimalPart) return integerPart;
+
+  return `${integerPart},${decimalPart}`;
+}
+
+/* ================= HELPERS ================= */
 
 function getChoiceOptionId(value: QuestionAnswerValue): string {
   if (typeof value === "string") return value;
@@ -107,14 +120,114 @@ function getChoiceSize(value: QuestionAnswerValue): SizeValue {
       unit: normalizeUnit(value.size.unit)
     };
   }
-  return { width: "", height: "", unit: "cm" };
+
+  return {
+    width: "",
+    height: "",
+    unit: "cm"
+  };
 }
+
+function getCheckboxObjects(value: QuestionAnswerValue): ChoiceWithSizeValue[] {
+  if (!Array.isArray(value)) return [];
+
+  return value.map((item) => {
+    if (typeof item === "string") {
+      return {
+        optionId: item,
+        size: { width: "", height: "", unit: "cm" }
+      };
+    }
+
+    if (isChoiceWithSizeValue(item)) {
+      return {
+        optionId: normalizeString(item.optionId),
+        text: normalizeString(item.text),
+        size: {
+          width: normalizeString(item.size?.width),
+          height: normalizeString(item.size?.height),
+          unit: normalizeUnit(item.size?.unit)
+        }
+      };
+    }
+
+    return {
+      optionId: "",
+      text: "",
+      size: { width: "", height: "", unit: "cm" }
+    };
+  });
+}
+
+function getCheckboxSelectedIds(value: QuestionAnswerValue): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      if (typeof item === "string") return item;
+      if (isChoiceWithSizeValue(item)) return normalizeString(item.optionId);
+      return "";
+    })
+    .filter(Boolean);
+}
+
+function upsertCheckboxObject(
+  items: ChoiceWithSizeValue[],
+  optionId: string,
+  updater?: (current: ChoiceWithSizeValue) => ChoiceWithSizeValue
+) {
+  const index = items.findIndex(
+    (item) => normalizeString(item.optionId) === optionId
+  );
+
+  if (index >= 0) {
+    const current = items[index];
+    items[index] = updater ? updater(current) : current;
+    return items;
+  }
+
+  const created = updater
+    ? updater({
+        optionId,
+        text: "",
+        size: { width: "", height: "", unit: "cm" }
+      })
+    : {
+        optionId,
+        text: "",
+        size: { width: "", height: "", unit: "cm" }
+      };
+
+  items.push(created);
+  return items;
+}
+
+function removeCheckboxObject(items: ChoiceWithSizeValue[], optionId: string) {
+  return items.filter(
+    (item) => normalizeString(item.optionId) !== normalizeString(optionId)
+  );
+}
+
+function getSizeValidationMessage(size?: SizeValue): string {
+  const width = normalizeString(size?.width);
+  const height = normalizeString(size?.height);
+  const unit = normalizeString(size?.unit);
+
+  if (!width && !height) return "Preencha largura e altura.";
+  if (!width) return "Preencha a largura.";
+  if (!height) return "Preencha a altura.";
+  if (!unit) return "Selecione a unidade.";
+
+  return "";
+}
+
+/* ================= UI HELPERS ================= */
 
 function renderQuestionLabel(question: Question) {
   return (
     <PreviewQuestionLabel>
       {question.label?.trim() || "Pergunta sem título"}
-      {question.required && <RequiredMark>*</RequiredMark>}
+      {question.required ? <RequiredMark>*</RequiredMark> : null}
     </PreviewQuestionLabel>
   );
 }
@@ -149,11 +262,14 @@ export default function QuestionPreview({
   const optionName = useMemo(() => `preview_${question.id}`, [question.id]);
   const sizeEnabled = hasSizeEnabled(question);
 
-  const selectedId = getChoiceOptionId(value);
-  const selectedText = getChoiceText(value);
-  const selectedSize = getChoiceSize(value);
+  const selectedChoiceId = getChoiceOptionId(value);
+  const selectedChoiceText = getChoiceText(value);
+  const selectedChoiceSize = getChoiceSize(value);
 
-  /* ---------------- TEXT ---------------- */
+  const selectedCheckboxIds = getCheckboxSelectedIds(value);
+  const checkboxObjects = getCheckboxObjects(value);
+
+  /* ========= TEXT ========= */
 
   if (question.type === "text") {
     return (
@@ -161,6 +277,7 @@ export default function QuestionPreview({
         {renderQuestionLabel(question)}
 
         <PreviewTextInput
+          type="text"
           value={typeof value === "string" ? value : ""}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
@@ -172,7 +289,7 @@ export default function QuestionPreview({
     );
   }
 
-  /* ---------------- DATE ---------------- */
+  /* ========= DATE ========= */
 
   if (question.type === "date") {
     return (
@@ -189,7 +306,7 @@ export default function QuestionPreview({
     );
   }
 
-  /* ---------------- MULTIPLE ---------------- */
+  /* ========= MULTIPLE ========= */
 
   if (question.type === "multipleChoice") {
     return (
@@ -197,8 +314,8 @@ export default function QuestionPreview({
         {renderQuestionLabel(question)}
 
         <PreviewOptionsList>
-          {question.options?.map((option) => {
-            const checked = selectedId === option.id;
+          {(question.options ?? []).map((option) => {
+            const checked = selectedChoiceId === option.id;
 
             return (
               <div key={option.id} style={sizeCardStyle(checked)}>
@@ -207,78 +324,11 @@ export default function QuestionPreview({
                     type="radio"
                     name={optionName}
                     checked={checked}
-                    onChange={() =>
-                      onChange({
-                        optionId: option.id,
-                        text: option.isOther ? selectedText : "",
-                        size: selectedSize
-                      })
-                    }
+                    disabled={disabled}
+                    onChange={() => onChange(option.id)}
                   />
                   <span style={optionTextStyle()}>{option.label}</span>
                 </PreviewOptionRow>
-
-                {checked && sizeEnabled && (
-                  <PreviewSizeBlock>
-                    <PreviewSizeRow>
-                      <div>
-                        <PreviewSizeFieldLabel>Largura</PreviewSizeFieldLabel>
-                        <PreviewSizeInput
-                          value={selectedSize.width}
-                          onChange={(e) =>
-                            onChange({
-                              optionId: option.id,
-                              size: {
-                                ...selectedSize,
-                                width: sanitizeDimensionInput(e.target.value)
-                              }
-                            })
-                          }
-                        />
-                      </div>
-
-                      <div>
-                        <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
-                        <PreviewSizeInput
-                          value={selectedSize.height}
-                          onChange={(e) =>
-                            onChange({
-                              optionId: option.id,
-                              size: {
-                                ...selectedSize,
-                                height: sanitizeDimensionInput(e.target.value)
-                              }
-                            })
-                          }
-                        />
-                      </div>
-
-                      <div>
-                        <PreviewSizeFieldLabel>Unidade</PreviewSizeFieldLabel>
-                        <PreviewSizeSelect
-                          value={selectedSize.unit}
-                          onChange={(e) =>
-                            onChange({
-                              optionId: option.id,
-                              size: {
-                                ...selectedSize,
-                                unit: e.target.value
-                              }
-                            })
-                          }
-                        >
-                          {SIZE_UNITS.map((u) => (
-                            <option key={u}>{u}</option>
-                          ))}
-                        </PreviewSizeSelect>
-                      </div>
-                    </PreviewSizeRow>
-
-                    <PreviewSizeHint>
-                      Informe as dimensões. Ex: 1,20 × 0,80 m
-                    </PreviewSizeHint>
-                  </PreviewSizeBlock>
-                )}
               </div>
             );
           })}
