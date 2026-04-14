@@ -171,8 +171,8 @@ export const PreviewSizeFieldLabel = styled.span`
 `;
 
 export const PreviewSizeInput = styled.input`
-  width: 160px;
-  height: 44px;
+  width: 130px;
+  height: 30px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
   border-radius: 12px;
@@ -187,8 +187,8 @@ export const PreviewSizeInput = styled.input`
 `;
 
 export const PreviewSizeSelect = styled.select`
-  width: 110px;
-  height: 44px;
+  width: 150px;
+  height: 30px;
   padding: 0 12px;
   border: 1px solid #d1d5db;
   border-radius: 12px;
