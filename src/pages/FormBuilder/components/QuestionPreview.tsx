@@ -753,15 +753,21 @@ export default function QuestionPreview({
                     <PreviewSizeField>
                       <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
-                        type="number"
+                        type="text"
                         inputMode="decimal"
-                        value={optionSize.height}
-                        onChange={(e) =>
-                          updateCheckboxSize(option.id, "height", e.target.value)
-                        }
-                        onBlur={() => blurCheckboxSize(option.id, "height")}
+                        value={optionSize.width}
+                        onChange={(e) => {
+                          let value = e.target.value;
+                          value = value.replace(/[^0-9,]/g, "");
+                          const parts = value.split(",");
+                          if (parts.length > 2) return;
+                          if (/^\d{0,4}(,\d{0,2})?$/.test(value) || value === "") {
+                            updateCheckboxSize(option.id, "width", value);
+                          }
+                        }}
+                        onBlur={() => blurCheckboxSize(option.id, "width")}
                         disabled={disabled}
-                        placeholder="Ex.: 0,80"
+                        placeholder="Ex.: 1,20"
                       />
                     </PreviewSizeField>
 
