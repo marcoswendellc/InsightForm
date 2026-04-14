@@ -753,7 +753,7 @@ export default function QuestionPreview({
                     <PreviewSizeField>
                       <PreviewSizeFieldLabel>Altura</PreviewSizeFieldLabel>
                       <PreviewSizeInput
-                        type="number"
+                        type="text"
                         inputMode="decimal"
                         value={optionSize.height}
                         onChange={(e) => {
